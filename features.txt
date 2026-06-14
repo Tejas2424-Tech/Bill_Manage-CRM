@@ -1,0 +1,130 @@
+User Panels 
+1. Admin Panel 
+• Full system access  
+• Add/Edit/Delete Products  
+• Generate Barcode  
+• Manage Stock  
+• View Profit Reports  
+• Manage Vendors  
+• Manage Credit Customers  
+• View Sales Reports  
+• Add Staff  
+• Configure Stock Alerts  
+• View Dead Stock Alerts  
+• View All Bills  
+2. Staff / Cashier Panel 
+• Scan Barcode  
+• Create Bills  
+• Print Bills  
+• Add Credit Customer  
+• Check Product Stock  
+• Apply Discount  
+Modules 
+1. Login Module 
+• Admin Login  
+• Staff Login  
+• Secure Authentication  
+2. Dashboard Module 
+• Today Sales  
+• Today Profit  
+• Monthly Profit  
+• Total Products  
+• Low Stock Alerts  
+• Dead Stock Alerts  
+• Recent Bills  
+3. Product Management Module 
+• Add Product  
+• Edit Product  
+• Delete Product  
+• Search Product  
+• Product Category  
+• Product Brand  
+• Product Barcode  
+• Product Quantity  
+Product Fields 
+• Product Name  
+• Brand Name  
+• Category  
+• Purchase Price  
+• Selling Price  
+• Quantity  
+• Barcode Number  
+• Product Image  
+4. Barcode Module 
+• Scan Barcode  
+• Generate Barcode  
+• Auto Product Detection  
+• Barcode Printing  
+Features 
+• If product has no barcode then system generates barcode automatically  
+• Product auto fetch by barcode scan  
+5. Stock Management Module 
+• Add Stock  
+• Update Stock  
+• Stock Auto Reduce After Sale  
+• Stock History  
+• Low Stock Alerts  
+6. Billing Module 
+• Barcode Billing  
+• Auto Product Add  
+• Multiple Product Billing  
+• Discount Option  
+• GST Option  
+• Print Bill  
+• Save Bill History  
+Billing Flow 
+Scan Barcode → Product Added → Print Bill 
+7. Smart Discount Module 
+• Enter Discount Amount  
+• Auto Convert Discount into Percentage  
+• Final Bill Calculation  
+Example 
+Selling Price = ₹450 
+Discount = ₹50 
+Final Amount = ₹400 
+Discount Percentage = 11.11% 
+8. Profit Report Module 
+• Daily Profit  
+• Weekly Profit  
+• Monthly Profit  
+• Product Wise Profit  
+Profit Formula 
+Selling Price - Purchase Price 
+9. Vendor Management Module 
+• Vendor Name  
+• Bill Number  
+• Payment Amount  
+• Payment Type  
+• Payment Date  
+• Staff Name (Who Paid)  
+• Monthly Vendor Report  
+• Yearly Vendor Report  
+Payment Types 
+• Cash  
+• UPI  
+• Bank Transfer  
+10. Credit Customer Module 
+• Customer Name  
+• Date & Time  
+• Credit Amount  
+• Product Auto Add by Barcode  
+• Reference Person Entry  
+Reference Options 
+• Son  
+• Daughter  
+• Mother  
+• Friend  
+• Other  
+11. Stock Alert Module 
+• Different Stock Alert for Different Products  
+• Low Stock Notification  
+• Dashboard Warning  
+Example 
+• Product A Alert at 5 Qty  
+• Product B Alert at 20 Qty  
+12. Dead Stock Alert Module 
+• Product Wise Duration Setting  
+• 30 Days Alert  
+• 60 Days Alert  
+• 90 Days Alert  
+• Unsold Product Report 

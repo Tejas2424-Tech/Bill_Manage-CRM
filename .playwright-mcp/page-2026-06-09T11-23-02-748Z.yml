@@ -1,0 +1,57 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]: BM
+        - generic [ref=e7]: BillManage
+      - heading "Run your business with confidence" [level=1] [ref=e8]:
+        - text: Run your business
+        - text: with confidence
+      - paragraph [ref=e9]: Multi-branch billing, inventory, and financial analytics — all in one clean, fast platform.
+    - list [ref=e10]:
+      - listitem [ref=e11]:
+        - generic [ref=e13]: 
+        - generic [ref=e14]:
+          - strong [ref=e15]: Fast POS Billing
+          - text: Barcode scanning, GST, discounts — one click billing
+      - listitem [ref=e16]:
+        - generic [ref=e18]: 
+        - generic [ref=e19]:
+          - strong [ref=e20]: Smart Inventory
+          - text: Real-time stock levels with low & dead stock alerts
+      - listitem [ref=e21]:
+        - generic [ref=e23]: 
+        - generic [ref=e24]:
+          - strong [ref=e25]: Financial Reports
+          - text: Sales, profit, credit — complete business visibility
+      - listitem [ref=e26]:
+        - generic [ref=e28]: 
+        - generic [ref=e29]:
+          - strong [ref=e30]: Multi-Branch
+          - text: Manage all locations from a single dashboard
+    - generic [ref=e31]: © 2026 BillManage — All rights reserved
+  - generic [ref=e33]:
+    - generic [ref=e34]:
+      - heading "Welcome back 👋" [level=2] [ref=e35]
+      - paragraph [ref=e36]: Sign in to your BillManage account to continue.
+    - generic [ref=e37]:
+      - generic [ref=e38]:
+        - generic [ref=e39]: Email Address
+        - generic [ref=e40]:
+          - generic:
+            - generic: 
+          - textbox "admin@shop.com" [active] [ref=e41]
+      - generic [ref=e42]:
+        - generic [ref=e43]: Password
+        - generic [ref=e44]:
+          - generic:
+            - generic: 
+          - textbox "Enter your password" [ref=e45]
+          - button "" [ref=e46] [cursor=pointer]:
+            - generic [ref=e47]: 
+      - button " Sign In to Dashboard" [ref=e48] [cursor=pointer]:
+        - generic [ref=e49]: 
+        - generic [ref=e50]: Sign In to Dashboard
+    - generic [ref=e51]:
+      - generic [ref=e52]: 
+      - text: Secured with encrypted sessions & CSRF protection

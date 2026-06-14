@@ -1,0 +1,36 @@
+Options -Indexes
+
+# Deny access to sensitive files (Apache 2.2 + 2.4 compatible)
+<FilesMatch "\.(env|log|sql|md)$">
+    <IfVersion >= 2.4>
+        Require all denied
+    </IfVersion>
+    <IfVersion < 2.4>
+        Order allow,deny
+        Deny from all
+    </IfVersion>
+</FilesMatch>
+
+# Deny access to config and includes directories
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(config|includes)($|/) - [F,L]
+</IfModule>
+
+# Caching for assets
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css "access plus 30 days"
+    ExpiresByType application/javascript "access plus 30 days"
+    ExpiresByType image/png "access plus 60 days"
+    ExpiresByType image/jpeg "access plus 60 days"
+    ExpiresByType image/webp "access plus 60 days"
+</IfModule>
+
+# Security Headers
+<IfModule mod_headers.c>
+    Header always set X-Frame-Options "DENY"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-XSS-Protection "1; mode=block"
+    Header always set Referrer-Policy "no-referrer-when-downgrade"
+</IfModule>
