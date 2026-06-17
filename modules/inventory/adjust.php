@@ -39,6 +39,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             redirect('index.php');
         }
 
+        // Log against the product's branch (superadmin has a NULL session branch).
+        $branch_id = (int)$product['branch_id'];
+        if (!$branch_id) {
+            flashMessage('danger', 'Unable to determine branch for this product.');
+            redirect('index.php');
+        }
+
         try {
             $pdo->beginTransaction();
 

@@ -19,9 +19,14 @@ if (empty($q) && empty($barcode)) {
     exit;
 }
 
-// Superadmin has NULL branch_id — search all branches; others filter to their branch
-$branch_filter        = (!isAdmin() || $branch_id) ? " AND branch_id = ?" : "";
-$branch_filter_params = (!isAdmin() || $branch_id) ? [$branch_id] : [];
+// Branch users are always scoped to their own branch; superadmin sees all (existing rule).
+if (!isAdmin()) {
+    $branch_filter        = " AND branch_id = ?";
+    $branch_filter_params = [(int)$_SESSION['branch_id']];
+} else {
+    $branch_filter        = "";
+    $branch_filter_params = [];
+}
 
 if (!empty($barcode)) {
     // Barcode — find product regardless of stock level (stock check happens at bill creation)

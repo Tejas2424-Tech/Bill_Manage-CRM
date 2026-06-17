@@ -14,6 +14,8 @@ $is_edit = $customer_id !== null;
 $pageTitle = $is_edit ? 'Edit Customer' : 'Add Credit Customer';
 $breadcrumb = "People / Credit Customers / " . ($is_edit ? 'Edit' : 'Add');
 
+$branches = isAdmin() ? $pdo->query("SELECT id, name FROM branches WHERE status='active' ORDER BY name ASC")->fetchAll() : [];
+
 $customer = null;
 if ($is_edit) {
     $stmt = $pdo->prepare("SELECT * FROM credit_customers WHERE id = ?" . (!isAdmin() ? " AND branch_id = " . (int)$_SESSION['branch_id'] : ""));
@@ -32,13 +34,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $address = sanitize($_POST['address'] ?? '');
     $ref_name = sanitize($_POST['reference_name'] ?? '');
     $ref_rel = $_POST['reference_relation'] ?? '';
-    $branch_id = $_SESSION['branch_id'];
+    $branch_id = isAdmin() ? (int)($_POST['branch_id'] ?? 0) : (int)$_SESSION['branch_id'];
 
     // Validation
     if (empty($name) || empty($phone)) {
         $error = 'Customer Name and Mobile Number are required.';
     } elseif (!preg_match('/^[0-9]{10}$/', $phone)) {
         $error = 'Please enter a valid 10-digit mobile number.';
+    } elseif (!$branch_id) {
+        $error = 'Please select a branch for this customer.';
     } else {
         try {
             if ($is_edit) {
@@ -86,6 +90,17 @@ include_once __DIR__ . '/../../includes/header.php';
             <?php endif; ?>
 
             <form action="" method="POST" class="mt-4">
+<?php if (isAdmin()): ?>
+                <div class="form-group">
+                    <label class="form-label">Branch <span class="req">*</span></label>
+                    <select name="branch_id" class="form-control" required>
+                        <option value="">Select Branch</option>
+                        <?php foreach ($branches as $b): ?>
+                            <option value="<?php echo (int)$b['id']; ?>" <?php echo ($customer['branch_id'] ?? '') == $b['id'] ? 'selected' : ''; ?>><?php echo sanitize($b['name']); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+<?php endif; ?>
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Customer Name <span class="req">*</span></label>

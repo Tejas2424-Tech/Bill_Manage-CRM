@@ -20,12 +20,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $branch_id = $_SESSION['branch_id'];
 
     // Get current quantity
-    $stmt = $pdo->prepare("SELECT quantity, name FROM products WHERE id = ?" . (!isAdmin() ? " AND branch_id = " . (int)$branch_id : ""));
+    $stmt = $pdo->prepare("SELECT quantity, name, branch_id FROM products WHERE id = ?" . (!isAdmin() ? " AND branch_id = " . (int)$branch_id : ""));
     $stmt->execute([$product_id]);
     $product = $stmt->fetch();
 
     if (!$product) {
         flashMessage('danger', 'Product not found or access denied.');
+        redirect('index.php');
+    }
+
+    // Log against the product's branch (superadmin has a NULL session branch).
+    $branch_id = (int)$product['branch_id'];
+    if (!$branch_id) {
+        flashMessage('danger', 'Unable to determine branch for this product.');
         redirect('index.php');
     }
 

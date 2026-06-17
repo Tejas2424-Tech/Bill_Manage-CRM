@@ -24,6 +24,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect('index.php');
     }
 
+    // Resolve product + its branch (non-admins restricted to their own branch).
+    // Superadmin has a NULL session branch, so always take the branch from the product.
+    $stmt = $pdo->prepare("SELECT branch_id FROM products WHERE id = ?" . (!isAdmin() ? " AND branch_id = " . (int)$branch_id : ""));
+    $stmt->execute([$product_id]);
+    $prod = $stmt->fetch();
+    if (!$prod) {
+        flashMessage('danger', 'Product not found or access denied.');
+        redirect('index.php');
+    }
+    $branch_id = (int)$prod['branch_id'];
+    if (!$branch_id) {
+        flashMessage('danger', 'Unable to determine branch for this product.');
+        redirect('index.php');
+    }
+
     try {
         $pdo->beginTransaction();
 

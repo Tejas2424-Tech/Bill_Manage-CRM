@@ -8,11 +8,25 @@ require_once __DIR__ . '/../../includes/functions.php';
 
 requireNotCashier();
 
-$branch_id = $_SESSION['branch_id'];
+if (isAdmin()) {
+    // Superadmin picks the target branch (via the selector / ?branch_id on reload / POST).
+    $branch_id = (int)($_POST['branch_id'] ?? $_GET['branch_id'] ?? 0);
+} else {
+    $branch_id = (int)$_SESSION['branch_id'];
+}
+$branches = isAdmin() ? $pdo->query("SELECT id, name FROM branches WHERE status='active' ORDER BY name ASC")->fetchAll() : [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
         flashMessage('danger', 'Invalid security token.');
+        redirect('add.php');
+    }
+
+    // A purchase belongs to exactly one branch; ensure it is valid (superadmin must pick one).
+    $bok = $pdo->prepare("SELECT 1 FROM branches WHERE id = ? AND status = 'active'");
+    $bok->execute([$branch_id]);
+    if (!$bok->fetchColumn()) {
+        flashMessage('danger', 'Please select a valid branch for this purchase.');
         redirect('add.php');
     }
 
@@ -48,6 +62,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $price = (float)$item_prices[$idx];
                 $total = $qty * $price;
 
+                // Item must belong to the purchase's branch (guards tampered/cross-branch ids).
+                $chk = $pdo->prepare("SELECT 1 FROM products WHERE id = ? AND branch_id = ?");
+                $chk->execute([$prod_id, $branch_id]);
+                if (!$chk->fetchColumn()) {
+                    throw new Exception('Product does not belong to the selected branch.');
+                }
+
                 $stmt = $pdo->prepare("INSERT INTO purchase_items (purchase_id, product_id, quantity, purchase_price, total) VALUES (?, ?, ?, ?, ?)");
                 $stmt->execute([$purchase_id, $prod_id, $qty, $price, $total]);
 
@@ -73,7 +94,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $vendors = $pdo->query("SELECT id, name FROM vendors WHERE status=1 ORDER BY name ASC")->fetchAll();
-$products = $pdo->query("SELECT id, name, sku, purchase_price FROM products WHERE branch_id = $branch_id AND status='active' ORDER BY name ASC")->fetchAll();
+if ($branch_id) {
+    $pstmt = $pdo->prepare("SELECT id, name, sku, purchase_price FROM products WHERE branch_id = ? AND status='active' ORDER BY name ASC");
+    $pstmt->execute([$branch_id]);
+    $products = $pstmt->fetchAll();
+} else {
+    $products = []; // superadmin hasn't chosen a branch yet — render empty, no crash
+}
 
 $pageTitle = 'New Purchase';
 include_once __DIR__ . '/../../includes/header.php';
@@ -89,6 +116,19 @@ include_once __DIR__ . '/../../includes/header.php';
                     <h3 class="card-title">Purchase Information</h3>
                     <a href="index.php" class="btn btn-outline btn-sm">Back</a>
                 </div>
+
+<?php if (isAdmin()): ?>
+                <div class="form-group mt-4">
+                    <label class="form-label">Branch <span class="req">*</span></label>
+                    <select name="branch_id" class="form-control" required onchange="location.href='add.php?branch_id=' + this.value">
+                        <option value="">Select Branch</option>
+                        <?php foreach ($branches as $b): ?>
+                            <option value="<?php echo (int)$b['id']; ?>" <?php echo $branch_id == $b['id'] ? 'selected' : ''; ?>><?php echo sanitize($b['name']); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <p class="form-hint">Select a branch to load its products.</p>
+                </div>
+<?php endif; ?>
 
                 <div class="form-row-3 mt-4">
                     <div class="form-group">

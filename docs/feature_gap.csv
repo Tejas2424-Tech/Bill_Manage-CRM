@@ -1,0 +1,41 @@
+Feature,Status,Confidence,Evidence Files
+Billing - core POS (cart/total/print),Exists,High,modules/billing/create.php; modules/billing/invoice.php; modules/billing/thermal.php
+Billing - payment cash/online/credit,Exists,High,modules/billing/create.php:258
+Billing - customer Date of Birth capture,Missing,High,database.sql (no DOB column); modules/billing/create.php
+Billing - product Size on line item,Missing,High,database.sql (products/bill_items have no size)
+Billing - discount auto-selection bands (15-19->15% etc),Missing,High,modules/billing/create.php (no banded JS)
+Billing - alteration fields (required/new length/charge),Missing,High,modules/billing/create.php; database.sql
+Billing - Draft/Confirmed lifecycle (stock after confirm),Missing,High,modules/billing/create.php:83 (stock drops on save); bills.status enum
+Billing - Financial-Year bill numbering,Missing,High,includes/functions.php:49 (uses calendar date('Y'))
+Billing - cancel admin-only + reason required,Partial,High,modules/billing/cancel.php:37 (cashier same-day; no reason stored)
+Billing - print footer NO RETURN/EXCHANGE/REFUND (EN+Marathi),Missing,High,modules/billing/thermal.php; modules/billing/invoice.php (absent)
+Customer Search - by mobile with full history,Partial,High,modules/customers/index.php:122 (name/phone filter on credit_customers only)
+Exchange Module,Missing,High,no table in database.sql; no modules/exchange/
+Defective Replacement Module,Missing,High,no table in database.sql; no defective stock bucket
+Defective Stock bucket (non-sellable),Missing,High,database.sql (products has only quantity)
+Product Master - add/edit/category/prices/qty,Exists,High,modules/products/add.php; modules/products/edit.php
+Product Master - Size field,Missing,High,database.sql (products has no size column)
+Stock Management - increase/update stock,Exists,High,modules/inventory/stock_in.php; modules/purchase/add.php
+Stock Check - search + available qty + price,Partial,High,modules/inventory/index.php; modules/inventory/adjust.php
+Stock Check - Size filter + Defective qty column,Missing,High,modules/inventory/index.php (no size/defective)
+Today's Sales - total sales + profit,Exists,High,modules/dashboard/index.php:29
+Today's Sales - total bills count,Missing,Medium,modules/dashboard/index.php
+Today's Sales - cash vs online collection split,Missing,Medium,modules/dashboard/index.php
+Today's Sales - category-wise sales,Missing,High,modules/dashboard/index.php; modules/reports/sales.php
+Birthday Module,Missing,High,no DOB column in database.sql; no modules/birthday/
+Alteration Management Module,Missing,High,no table in database.sql; no modules/alteration/
+Reports - Sales Report,Exists,High,modules/reports/sales.php
+Reports - Stock Report,Exists,High,modules/reports/inventory.php
+Reports - Discount Report,Missing,High,modules/reports/ (none)
+Reports - Product Sales Report,Missing,Medium,modules/reports/ (profit.php is profit not product-sales)
+Reports - Exchange Report,Missing,High,modules/reports/ (no exchange module)
+Reports - Defective Report,Missing,High,modules/reports/ (no defective module)
+Reports - Alteration Report,Missing,High,modules/reports/ (no alteration module)
+Reports - Financial-Year filter,Missing,Medium,modules/reports/ (no FY filter)
+Reports - Mon-Sun weekly logic,Missing,Medium,modules/reports/ (not implemented)
+Dashboard - Admin today sales/profit,Exists,High,modules/dashboard/index.php
+Dashboard - Defective Stock tile,Missing,High,modules/dashboard/index.php (no defective)
+Dashboard - Birthday Customers,Missing,High,modules/dashboard/index.php
+Dashboard - dedicated Cashier dashboard,Missing,Medium,modules/dashboard/index.php (single dashboard)
+Roles - Admin/Cashier (superadmin/branch_admin/cashier),Exists,High,includes/auth.php
+Roles - cashier access to Exchange/Defective/StockCheck/Today/Birthday,Partial,High,includes/auth.php (requireNotCashier on several target pages)
