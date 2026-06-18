@@ -42,6 +42,27 @@ $unread_notifs = getUnreadNotificationCount();
         <span class="nav-label">Reprint Sale</span>
     </a>
 
+    <a href="<?php echo BASE_URL; ?>/modules/billing/drafts.php"
+       class="nav-item <?php echo strpos($current_uri, '/billing/drafts') !== false ? 'active' : ''; ?>"
+       data-tooltip="Draft Bills">
+        <i class="fas fa-floppy-disk"></i>
+        <span class="nav-label">Draft Bills</span>
+    </a>
+
+    <a href="<?php echo BASE_URL; ?>/modules/billing/today.php"
+       class="nav-item <?php echo strpos($current_uri, '/billing/today') !== false ? 'active' : ''; ?>"
+       data-tooltip="Today's Sales">
+        <i class="fas fa-calendar-day"></i>
+        <span class="nav-label">Today's Sales</span>
+    </a>
+
+    <a href="<?php echo BASE_URL; ?>/modules/exchange/index.php"
+       class="nav-item <?php echo (strpos($current_uri, '/exchange/') !== false || strpos($current_uri, '/defective/') !== false) ? 'active' : ''; ?>"
+       data-tooltip="Exchange / Replacement">
+        <i class="fas fa-right-left"></i>
+        <span class="nav-label">Exchange / Replace</span>
+    </a>
+
     <!-- Inventory -->
     <div class="nav-section">Inventory</div>
 
@@ -53,10 +74,17 @@ $unread_notifs = getUnreadNotificationCount();
     </a>
 
     <a href="<?php echo BASE_URL; ?>/modules/inventory/index.php"
-       class="nav-item <?php echo strpos($current_uri, '/inventory/') !== false ? 'active' : ''; ?>"
+       class="nav-item <?php echo (strpos($current_uri, '/inventory/') !== false && strpos($current_uri, '/inventory/stock_check') === false) ? 'active' : ''; ?>"
        data-tooltip="Inventory">
         <i class="fas fa-warehouse"></i>
         <span class="nav-label">Inventory</span>
+    </a>
+
+    <a href="<?php echo BASE_URL; ?>/modules/inventory/stock_check.php"
+       class="nav-item <?php echo strpos($current_uri, '/inventory/stock_check') !== false ? 'active' : ''; ?>"
+       data-tooltip="Stock Check">
+        <i class="fas fa-magnifying-glass-chart"></i>
+        <span class="nav-label">Stock Check</span>
     </a>
 
     <?php if (!isCashier()): ?>
@@ -80,12 +108,35 @@ $unread_notifs = getUnreadNotificationCount();
     </a>
     <?php endif; ?>
 
+    <a href="<?php echo BASE_URL; ?>/modules/customers/search.php"
+       class="nav-item <?php echo strpos($current_uri, '/customers/search') !== false ? 'active' : ''; ?>"
+       data-tooltip="Customer Search">
+        <i class="fas fa-magnifying-glass"></i>
+        <span class="nav-label">Customer Search</span>
+    </a>
+
     <a href="<?php echo BASE_URL; ?>/modules/customers/index.php"
-       class="nav-item <?php echo strpos($current_uri, '/customers/') !== false ? 'active' : ''; ?>"
+       class="nav-item <?php echo (strpos($current_uri, '/customers/') !== false && strpos($current_uri, '/customers/search') === false) ? 'active' : ''; ?>"
        data-tooltip="Credit Customers">
         <i class="fas fa-users"></i>
         <span class="nav-label">Credit Customers</span>
     </a>
+
+    <a href="<?php echo BASE_URL; ?>/modules/birthday/index.php"
+       class="nav-item <?php echo strpos($current_uri, '/birthday/') !== false ? 'active' : ''; ?>"
+       data-tooltip="Birthday List">
+        <i class="fas fa-cake-candles"></i>
+        <span class="nav-label">Birthday List</span>
+    </a>
+
+    <?php if (!isCashier()): ?>
+    <a href="<?php echo BASE_URL; ?>/modules/alteration/index.php"
+       class="nav-item <?php echo strpos($current_uri, '/alteration/') !== false ? 'active' : ''; ?>"
+       data-tooltip="Alterations">
+        <i class="fas fa-scissors"></i>
+        <span class="nav-label">Alterations</span>
+    </a>
+    <?php endif; ?>
 
     <!-- Finance -->
     <div class="nav-section">Finance</div>

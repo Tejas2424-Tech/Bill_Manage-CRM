@@ -6,6 +6,16 @@
 
 > Stack note: There are **no** `ajax/`, `api/`, or `migrations/` directories. Each `modules/<x>/*.php` is both controller and view. Single schema file: `database.sql` (18 tables).
 
+> **Validation revisions (2nd pass):** This document was re-audited against the live source and DB. Six findings were corrected and several gaps added — see the changelog below. The companion **[IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md)** carries the full validation detail, migrations, effort, DB architecture, and file-by-file plan.
+>
+> Corrections in this pass:
+> 1. **Payment mode is NOT "cash/online/credit supported" — it's a live bug.** `bills.bill_type` is `enum('cash','credit')` only (confirmed via live `SHOW COLUMNS`), and `sql_mode` has `STRICT_TRANS_TABLES`. Selecting **Online** or **Card** in the POS posts a value the column rejects → "Data truncated" → bill save fails. Only `cash`/`credit` actually store.
+> 2. **Product Sales Report exists** (Partial, not Missing) — `reports/sales.php:62-71` (top-10 product-wise qty/revenue/profit).
+> 3. **Category-wise sales exists** in `reports/sales.php:74-84`; missing only from the *Today's Sales dashboard*.
+> 4. **Monday-start weekly exists** (`reports/sales.php:25`); what's missing is **Yearly + Financial-Year** presets.
+> 5. **A non-admin (cashier/staff) dashboard exists** (`dashboard/index.php:116`, Partial) — it just lacks the spec's cashier actions.
+> 6. **Print footer is configurable on the A4 invoice** (`invoice.php:185`, `invoice_footer` setting); thermal is hardcoded — still no Marathi/NO-RETURN default.
+
 ---
 
 ## 1. Feature Coverage Summary
@@ -28,18 +38,18 @@ Interpretation: the *foundation* (billing engine, products, stock-in, reports fr
 
 | Requirement Module | Exists | Partial | Missing | Evidence (files) | Notes |
 |---|:--:|:--:|:--:|---|---|
-| Billing | | ⚠️ | | `modules/billing/create.php`, `cancel.php`, `invoice.php`, `thermal.php`; tables `bills`, `bill_items` | Core POS works (cash/online/credit at `create.php:258`). Missing: DOB, Size, discount auto-bands, alteration fields, Draft/Confirmed lifecycle, FY bill numbering, admin-only cancel + reason, NO-RETURN print footer. |
-| Customer Search | | ⚠️ | | `modules/customers/index.php:122` | Name/phone filter over `credit_customers` only. Spec wants search-by-mobile → bills + purchase + exchange + defective history. |
+| Billing | | ⚠️ | | `modules/billing/create.php`, `cancel.php`, `invoice.php`, `thermal.php`; tables `bills`, `bill_items` | Core POS works for **cash** only; **credit** stores but **online/card SAVE-FAIL** (bill_type enum is `cash,credit` + STRICT mode — `create.php:258,262`). Missing: DOB, Size, discount auto-bands, alteration fields, Draft/Confirmed lifecycle, FY bill numbering, admin-only cancel + reason, NO-RETURN print footer. |
+| Customer Search | | ⚠️ | | `modules/customers/index.php:122`, `ledger.php` | Name/phone JS filter over `credit_customers` (joins `bills` for dues/last-txn — `index.php:78-83`). Missing: search-by-mobile for **any** customer → full purchase + exchange + defective history; no `customers` master (bills keyed by free-text phone). |
 | Exchange | | | ❌ | — | No table, no page. Only whole-bill cancel exists (`cancel.php`). |
 | Defective Replacement | | | ❌ | — | No table, no defective-stock bucket, no page. |
 | Product Master | | ⚠️ | | `modules/products/add.php`, `edit.php`; table `products` | Add/Edit/Category/Prices/Qty present. **No `size` column.** |
 | Stock Management | | ⚠️ | | `modules/inventory/stock_in.php`, `modules/purchase/add.php`; tables `inventory_log`, `purchases` | Increase/update stock works. **No Defective Stock type/bucket.** |
 | Stock Check | | ⚠️ | | `modules/inventory/index.php`, `adjust.php` | Search by name; available qty + price shown. Missing: Size filter, Defective-quantity column. |
-| Today's Sales | | ⚠️ | | `modules/dashboard/index.php:29`, `modules/reports/sales.php` | Total sales + profit present. Missing: total bills count, cash-vs-online split, category-wise sales. |
+| Today's Sales | | ⚠️ | | `modules/dashboard/index.php:29`, `modules/reports/sales.php` | Total sales + profit present. Missing on the *today* view: total bills count, cash-vs-online split (blocked by the bill_type bug), category-wise sales. *(Category-wise + product-wise DO exist in the Sales **Report** — `sales.php:62-84`.)* |
 | Birthday | | | ❌ | — | No DOB column anywhere; nothing to list. |
 | Alteration Management | | | ❌ | — | No table, no page, no reports. |
-| Reports | | ⚠️ | | `modules/reports/` (sales, profit, inventory, credit, tax, stock_movement, vendor_purchases, cashier_performance, expenses_report) | Missing: Discount, Exchange, Defective, Alteration, Product-Sales reports; FY filter & Mon–Sun weekly logic. |
-| Dashboard | | ⚠️ | | `modules/dashboard/index.php` | Admin: today sales/profit + branch perf. Missing: Defective Stock tile, Birthday Customers, category context; no dedicated Cashier dashboard with Exchange/Defective/Birthday/Customer-Search actions. |
+| Reports | | ⚠️ | | `modules/reports/` (sales, profit, inventory, credit, tax, stock_movement, vendor_purchases, cashier_performance, expenses_report) | Present incl. **product-wise + category-wise** sales (`sales.php:62-84`) and **Monday-start weekly** (`sales.php:25`). Missing: standalone Discount, Exchange, Defective, Alteration reports; **Yearly + Financial-Year** presets (only today/this_week/this_month/custom). |
+| Dashboard | | ⚠️ | | `modules/dashboard/index.php` | Admin: today sales/profit + branch perf. A **non-admin quick-action block exists** (`index.php:116`) but lacks the spec's Exchange/Defective/Birthday/Customer-Search actions (and links Stock-In, which cashiers are blocked from). Missing: Defective Stock tile, Birthday Customers. |
 
 ---
 
@@ -63,17 +73,18 @@ Interpretation: the *foundation* (billing engine, products, stock-in, reports fr
 ## 4. Partial Features — What Exists / What's Missing / Effort
 
 ### 4.1 Billing  — *Effort: L (largest single workstream)*
-- **Exists:** cart-based POS, cash/online/credit, discount amount/percent, GST, stock decrement + `inventory_log`, invoice + thermal print, transactional integrity.
-- **Missing:**
+- **Exists:** cart-based POS, **cash** billing, **credit** billing, discount amount/percent, GST, stock decrement + `inventory_log`, invoice + thermal print, transactional integrity.
+- **Missing / Broken:**
+  - 🐞 **Online & Card payment SAVE-FAIL (live bug).** `bills.bill_type` is `enum('cash','credit')` (database.sql:147, confirmed via live `SHOW COLUMNS`) but the POS posts `online` (`create.php:258`) and `card` (`create.php:262`). With `STRICT_TRANS_TABLES` on, the INSERT raises "Data truncated for column 'bill_type'" → bill rolls back. The spec's Cash/**Online** split cannot work until the enum is widened. (`card` is also UI-only and not in spec.)
   - Customer **Date of Birth** capture (needed for Birthday module).
   - **Size** per line item.
-  - **Discount auto-selection bands** (15–19→15% … 50+→50%) — no banded logic in the create.php JS.
+  - **Discount auto-selection bands** (15–19→15% … 50+→50%) — no banded logic in the create.php JS (discount is a manual amount; `discount_percent` is computed).
   - **Alteration in bill**: Required (Y/N), New Length, Alteration Charge.
-  - **Bill lifecycle Draft → Confirmed → Cancelled**: current `bills.status` enum = paid/credit/partial/cancelled, and **stock reduces immediately** on insert (`create.php:83`), not "only after confirmation."
-  - **Financial-Year bill numbering**: `functions.php:49` uses calendar `date('Y')`; spec needs FY (1 Apr–31 Mar) restarting at 1.
+  - **Bill lifecycle Draft → Confirmed → Cancelled**: current `bills.status` enum = paid/credit/partial/cancelled (a *payment* status), and **stock reduces immediately** on insert (`create.php:83`), not "only after confirmation." Needs a separate `bill_state`.
+  - **Financial-Year bill numbering**: `functions.php:49` uses calendar `date('Y')` + COUNT+1 (`functions.php:52`, race-prone); spec needs FY (1 Apr–31 Mar) restarting at 1.
   - **Cancel = admin-only + reason required**: today cashiers can cancel same-day bills (`cancel.php:37`) and no reason is stored.
-  - **Print footer** "NO RETURN • NO EXCHANGE • NO REFUND" (English + Marathi) — absent from `thermal.php`/`invoice.php`.
-- **Effort:** ~5–8 dev-days (schema changes to `bills`/`bill_items`, UI fields, FY numbering, status state machine, deferred stock).
+  - **Print footer** "NO RETURN • NO EXCHANGE • NO REFUND" (English + Marathi) — A4 invoice has a *configurable* `invoice_footer` setting (`invoice.php:185`) an admin could fill with the English line, but thermal (`thermal.php:125`) is hardcoded "THANK YOU FOR SHOPPING!"; no Marathi, not bold-by-default.
+- **Effort:** ~5–8 dev-days (enum fix, schema changes to `bills`/`bill_items`, UI fields, FY numbering, state machine, deferred stock).
 
 ### 4.2 Customer Search — *Effort: M*
 - **Exists:** `customers/index.php:122` JS filter by name/phone over `credit_customers`.
@@ -96,18 +107,18 @@ Interpretation: the *foundation* (billing engine, products, stock-in, reports fr
 - **Effort:** ~0.5–1 day (depends on §4.4).
 
 ### 4.6 Today's Sales — *Effort: M*
-- **Exists:** `dashboard/index.php:29` total sales + today profit.
-- **Missing:** **Total Bills** count, **Cash vs Online collection split**, **category-wise sales** (Shirt/T-Shirt/Pant/Jeans/Others).
-- **Effort:** ~1–2 days (category requires reliable product→category mapping).
+- **Exists:** `dashboard/index.php:29` total sales + today profit. *(Category-wise + product-wise sales already exist in the Sales **Report**, `sales.php:62-84` — reusable query.)*
+- **Missing on the today view:** **Total Bills** count, **Cash vs Online collection split** (blocked by the bill_type bug §4.1 — online isn't even storable yet), **category-wise** today tile.
+- **Effort:** ~1–2 days (after bill_type fix; reuse `sales.php` category query).
 
 ### 4.7 Reports — *Effort: M–L*
-- **Exists:** Sales, Profit, Inventory/Stock, Credit, Tax, Stock-movement, Vendor-purchases, Cashier-performance, Expenses.
-- **Missing required:** **Discount Report**, **Exchange Report**, **Defective Report**, **Alteration Report**, **Product Sales Report**; plus **Financial-Year filter** and **Mon–Sun weekly** date logic across reports.
-- **Effort:** ~3–5 days (exchange/defective/alteration reports depend on §5).
+- **Exists:** Sales (incl. **product-wise** top-10 `sales.php:62-71` and **category-wise** `sales.php:74-84`), Profit, Inventory/Stock, Credit, Tax, Stock-movement, Vendor-purchases, Cashier-performance, Expenses. **Monday-start weekly** preset exists (`sales.php:25`).
+- **Missing required:** standalone **Discount Report**, **Exchange Report**, **Defective Report**, **Alteration Report**; a dedicated **Product Sales Report** page (today it's an embedded top-10 block, not full/filterable); and **Yearly + Financial-Year** date presets (only today / this_week / this_month / custom exist — `sales.php:19-32`).
+- **Effort:** ~3–5 days (exchange/defective/alteration reports depend on §5; product-sales/discount reports can reuse existing `sales.php` queries).
 
 ### 4.8 Dashboard — *Effort: M*
-- **Exists:** Admin tiles (today sales/profit), branch performance.
-- **Missing:** **Defective Stock** tile, **Birthday Customers**, category context; a dedicated **Cashier Dashboard** with New Bill / Exchange / Defective / Customer Search / Today's Sales / Birthday actions.
+- **Exists:** Admin tiles (today sales/profit), branch performance. A **non-admin quick-action block already exists** (`dashboard/index.php:116`) for cashier/staff.
+- **Missing:** **Defective Stock** tile, **Birthday Customers** tile; the existing cashier block lacks the spec's **Exchange / Defective / Customer Search / Birthday** actions and currently links **Stock-In** (cashiers are blocked from `stock_in.php` by `requireNotCashier()` — a dead link for them).
 - **Effort:** ~2 days.
 
 ---
@@ -131,7 +142,7 @@ Interpretation: the *foundation* (billing engine, products, stock-in, reports fr
 - **Dependencies:** §4.4 defective bucket, `bills`/`bill_items`, `inventory_log`.
 
 ### 5.3 Birthday Module ❌
-- **Schema:** customer **`date_of_birth`** column (extend `credit_customers`, or a new `customers` master if billing should store every customer's DOB — see Risk §8).
+- **Schema:** **`customers.date_of_birth`** on the new unified `customers` master (decided architecture), captured at billing time.
 - **Pages:** `modules/birthday/index.php` — default = today, with custom-date search; output Name, Mobile, DOB.
 - **Dependencies:** DOB must be captured in Billing (§4.1) and/or customer master.
 - **Reuse:** `createNotification()` in `includes/functions.php` could later drive birthday reminders.
@@ -185,11 +196,12 @@ Interpretation: the *foundation* (billing engine, products, stock-in, reports fr
 
 ## 8. Missing DB Changes / Missing UI Pages / Risks / Recommended Order
 
-### Missing DB changes
-- **New tables:** `exchanges`, `defective_replacements`, `alterations`.
-- **New defective bucket:** `products.defective_quantity` (or `defective_stock` table).
-- **Column additions:** `credit_customers.date_of_birth` (or new `customers` master); `products.size`; `bill_items.size`; `bills.cancel_reason`; alteration fields on `bills` (or via `alterations`); status enum `bills.status` += `draft`, `confirmed`.
-- **Logic (not schema):** FY-aware bill numbering; Mon–Sun weekly + FY date filters.
+### Missing DB changes *(decided: unified `customers` master — full DDL in [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) §4)*
+- **New tables:** `customers` (master), `exchanges`, `defective_replacements`, `alterations`, `bill_counters` (FY numbering).
+- **Defective bucket:** `products.defective_quantity INT DEFAULT 0`.
+- **ENUM fix (bug):** `bills.bill_type` → `enum('cash','online','card','credit')`.
+- **Column additions:** `customers.date_of_birth`; `products.size`; `bill_items.size` + per-line alteration fields; `bills.customer_id` FK + `bill_state enum('draft','confirmed','cancelled')` (separate from payment `status`) + `cancel_reason`/`cancelled_by`/`cancelled_at`; `credit_customers.customer_id` FK.
+- **Logic (not schema):** FY-aware bill numbering (with `bill_counters`); **Yearly + FY** date presets (Monday-start weekly already exists).
 
 ### Missing UI pages
 - `modules/exchange/index.php` (+ commit endpoint)
@@ -201,7 +213,8 @@ Interpretation: the *foundation* (billing engine, products, stock-in, reports fr
 - New report pages: discount, product-sales, exchange, defective, alteration
 
 ### Risk areas
-- **Customer identity:** bills store customer as free-text (`customer_name`/`customer_phone`, no FK). DOB, exchange/defective history, and Customer Search all assume a reliable customer key. Introducing a `customers` master (or enforcing phone) is a cross-cutting decision — affects billing, search, birthday, exchange.
+- 🐞 **Online/Card billing is already broken** (`bill_type` enum + STRICT mode) — must be the **first** fix; the Cash/Online split in Today's Sales depends on it.
+- **Customer identity:** bills store customer as free-text (`customer_name`/`customer_phone`, no FK). **Decision: introduce a `customers` master** — cross-cutting (billing, search, birthday, exchange); requires a backfill from existing `bills`/`credit_customers` by branch+phone and tolerance for `bill_items.product_id` being `ON DELETE SET NULL`.
 - **Stock semantics change:** moving from "reduce on save" to "reduce on confirm" (Draft/Confirmed) rewrites the core billing transaction — highest regression risk; isolate and test last.
 - **Defective stock invariant:** must keep `inventory_log` in lockstep when moving units to a non-sellable bucket (per project stock invariant).
 - **Branch isolation:** every new table/query needs the manual `AND branch_id = ?` filter (DB does not enforce it) — easy to leak cross-branch data.
@@ -209,8 +222,8 @@ Interpretation: the *foundation* (billing engine, products, stock-in, reports fr
 - **STRICT_TRANS_TABLES:** ENUM/empty-value inserts fail hard — validate new ENUM fields (size, status, alteration_type) server-side.
 
 ### Recommended development order
-Phase 1 (1–6) → DOB/customer-master decision → Phase 2 (7–12) → Phase 3 Exchange (13) → Defective + defective bucket (10→14) → Bill lifecycle (15) → Reports completion (16).
+**bill_type enum fix** + **`customers` master** first (everything depends on them) → Phase 1 (1–6) → Phase 2 (7–12) → Phase 3 Exchange (13) → Defective + defective bucket (10→14) → Bill lifecycle (15) → Reports completion (16).
 
 ---
 
-*Generated from source inspection on the `dev` branch. All "Exists/Partial" rows cite files opened during analysis; all "Missing" rows verified absent in both `database.sql` and `modules/`.*
+*Generated from source inspection on the `dev` branch, then re-validated (2nd pass) against the live `billmanage` DB. All "Exists/Partial" rows cite files opened during analysis; all "Missing" rows verified absent in both `database.sql` and `modules/`. See [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) for migrations, effort, architecture, and the file-by-file build plan.*

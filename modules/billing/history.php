@@ -167,7 +167,7 @@ include_once __DIR__ . '/../../includes/header.php';
                                     'partial'   => 'badge-warning',
                                     default     => 'badge-warning',
                                 };
-                            ?>">
+                            ?>"<?php echo ($b['status'] === 'cancelled' && !empty($b['cancel_reason'])) ? ' title="Reason: ' . sanitize($b['cancel_reason']) . '"' : ''; ?>>
                                 <?php echo ucfirst($b['status']); ?>
                             </span>
                         </td>
@@ -177,11 +177,12 @@ include_once __DIR__ . '/../../includes/header.php';
                             <div style="display:flex;justify-content:flex-end;gap:4px;">
                                 <a href="invoice.php?id=<?php echo $b['id']; ?>" class="btn btn-ghost btn-icon btn-sm" title="A4 Invoice"><i class="fas fa-file-invoice"></i></a>
                                 <a href="thermal.php?id=<?php echo $b['id']; ?>" class="btn btn-ghost btn-icon btn-sm" target="_blank" title="Thermal Print"><i class="fas fa-receipt"></i></a>
-                                <?php if ($b['status'] != 'cancelled' && (isAdmin() || date('Y-m-d', strtotime($b['created_at'])) == date('Y-m-d'))): ?>
-                                    <form action="cancel.php" method="POST" style="display:inline;">
+                                <?php if ($b['status'] != 'cancelled' && isBranchAdmin()): ?>
+                                    <form action="cancel.php" method="POST" style="display:inline;" onsubmit="return askCancelReason(this);">
                                         <input type="hidden" name="csrf_token" value="<?php echo $csrf_token; ?>">
                                         <input type="hidden" name="bill_id" value="<?php echo $b['id']; ?>">
-                                        <button type="submit" class="btn btn-ghost btn-icon btn-sm" style="color:var(--danger);" data-confirm="Cancel this bill? Stock will be reversed." title="Cancel Bill"><i class="fas fa-ban"></i></button>
+                                        <input type="hidden" name="cancel_reason" value="">
+                                        <button type="submit" class="btn btn-ghost btn-icon btn-sm" style="color:var(--danger);" title="Cancel Bill"><i class="fas fa-ban"></i></button>
                                     </form>
                                 <?php endif; ?>
                             </div>
@@ -197,5 +198,16 @@ include_once __DIR__ . '/../../includes/header.php';
         <span style="font-weight:600;">Total: <?php echo formatCurrency($total_amount); ?></span>
     </div>
 </div>
+
+<script>
+/* Require a reason before cancelling (the prompt also serves as the confirmation). */
+function askCancelReason(form) {
+    const reason = prompt('Reason for cancelling this bill? (required)\nStock will be reversed.');
+    if (reason === null) return false;                 // user dismissed the prompt
+    if (!reason.trim()) { alert('A cancellation reason is required.'); return false; }
+    form.cancel_reason.value = reason.trim();
+    return true;
+}
+</script>
 
 <?php include_once __DIR__ . '/../../includes/footer.php'; ?>

@@ -189,6 +189,48 @@ include_once __DIR__ . '/../../includes/header.php';
     </div>
 </div>
 
+<!-- ── Garment Reports ─────────────────────────────────────── -->
+<div class="hub-section">
+    <div class="hub-section-title"><i class="fas fa-shirt" style="color:var(--primary);"></i> Garment Reports</div>
+    <div class="grid-4">
+        <a href="product_sales.php" class="sub-report-card">
+            <div class="sub-icon bg-blue-subtle"><i class="fas fa-tags"></i></div>
+            <div class="sub-info">
+                <div class="sub-title">Product Sales</div>
+                <div class="sub-desc">Qty sold, revenue &amp; profit per product</div>
+            </div>
+        </a>
+        <a href="discount.php" class="sub-report-card">
+            <div class="sub-icon bg-rose-subtle"><i class="fas fa-percent"></i></div>
+            <div class="sub-info">
+                <div class="sub-title">Discount Report</div>
+                <div class="sub-desc">Bill &amp; line-item discounts given over a period</div>
+            </div>
+        </a>
+        <a href="exchange.php" class="sub-report-card">
+            <div class="sub-icon bg-orange-subtle"><i class="fas fa-right-left"></i></div>
+            <div class="sub-info">
+                <div class="sub-title">Exchange Report</div>
+                <div class="sub-desc">Exchanges, return value &amp; difference collected</div>
+            </div>
+        </a>
+        <a href="defective.php" class="sub-report-card">
+            <div class="sub-icon bg-red-subtle"><i class="fas fa-triangle-exclamation"></i></div>
+            <div class="sub-info">
+                <div class="sub-title">Defective Report</div>
+                <div class="sub-desc">Defective replacements &amp; reasons</div>
+            </div>
+        </a>
+        <a href="<?php echo BASE_URL; ?>/modules/alteration/index.php" class="sub-report-card">
+            <div class="sub-icon bg-teal-subtle"><i class="fas fa-scissors"></i></div>
+            <div class="sub-info">
+                <div class="sub-title">Alteration Report</div>
+                <div class="sub-desc">Alteration jobs, charges &amp; status by period</div>
+            </div>
+        </a>
+    </div>
+</div>
+
 <!-- â”€â”€ Inventory & Stock â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
 <div class="hub-section">
     <div class="hub-section-title"><i class="fas fa-boxes-stacked" style="color:var(--primary);"></i> Inventory &amp; Stock</div>

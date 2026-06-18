@@ -35,6 +35,8 @@ $company_name = getSettingValue('company_name') ?: 'BillManage';
 $company_logo = getSettingValue('company_logo');
 $gst_number = getSettingValue('gst_number') ?: '';
 $invoice_footer = getSettingValue('invoice_footer') ?: 'Thank you for your business!';
+$return_policy_en = getSettingValue('return_policy_en') ?: 'NO RETURN • NO EXCHANGE • NO REFUND';
+$return_policy_mr = getSettingValue('return_policy_mr') ?: 'माल विकला गेला आहे. परतावा, बदल किंवा पैसे परत मिळणार नाहीत.';
 $show_gst = getSettingValue('show_gst') ?? '1';
 
 $pageTitle = 'Invoice ' . $bill['bill_number'];
@@ -125,6 +127,9 @@ include_once __DIR__ . '/../../includes/header.php';
             <?php if ($bill['bill_type'] === 'credit' && !empty($bill['collector_name'])): ?>
                 <div style="font-size:12px;color:#64748B;margin-top:4px;"><i class="fas fa-person-walking" style="font-size:10px;"></i> Collected by: <strong><?php echo sanitize($bill['collector_name']); ?></strong></div>
             <?php endif; ?>
+            <?php if (!empty($bill['employee_name'])): ?>
+                <div style="font-size:12px;color:#64748B;margin-top:4px;"><i class="fas fa-user-tag" style="font-size:10px;"></i> Employee: <strong><?php echo sanitize($bill['employee_name']); ?></strong></div>
+            <?php endif; ?>
         </div>
         <div style="text-align:right;">
             <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#94A3B8;margin-bottom:6px;">Served By</div>
@@ -166,10 +171,10 @@ include_once __DIR__ . '/../../includes/header.php';
             <?php foreach ($items as $idx => $item): ?>
                 <tr>
                     <td style="color:#94A3B8;"><?php echo $idx + 1; ?></td>
-                    <td style="font-weight:600;"><?php echo sanitize($item['product_name']); ?></td>
+                    <td style="font-weight:600;"><?php echo sanitize($item['product_name']); ?><?php echo !empty($item['size']) ? ' <span style="color:#94A3B8;font-size:11px;font-weight:500;">('.sanitize($item['size']).')</span>' : ''; ?></td>
                     <td style="text-align:center;"><?php echo $item['quantity']; ?></td>
                     <td style="text-align:right;">₹<?php echo number_format($item['selling_price'], 2); ?></td>
-                    <td style="text-align:right;color:#EF4444;"><?php echo $item['discount'] > 0 ? '-₹'.number_format($item['discount'], 2) : '—'; ?></td>
+                    <td style="text-align:right;color:#EF4444;"><?php echo $item['discount'] > 0 ? '-₹'.number_format($item['discount'], 2) . (!empty($item['discount_percent']) ? ' <span style="color:#94A3B8;font-size:11px;">('.rtrim(rtrim(number_format($item['discount_percent'],2),'0'),'.').'%)</span>' : '') : '—'; ?></td>
                     <td style="text-align:right;font-weight:700;">₹<?php echo number_format($item['total'], 2); ?></td>
                 </tr>
             <?php endforeach; ?>
@@ -193,6 +198,9 @@ include_once __DIR__ . '/../../includes/header.php';
                 <?php if ($bill['gst_percent'] >= 18): ?>
                 <tr><td style="padding:5px 0;font-size:13px;color:#64748B;">GST (<?php echo $bill['gst_percent']; ?>%)</td><td style="text-align:right;font-size:13px;font-weight:500;">₹<?php echo number_format($bill['gst_amount'], 2); ?></td></tr>
                 <?php endif; ?>
+                <?php if (!empty($bill['alteration_charge']) && $bill['alteration_charge'] > 0): ?>
+                <tr><td style="padding:5px 0;font-size:13px;color:#64748B;">Alteration<?php echo $bill['alteration_length'] ? ' (New Length: '.sanitize($bill['alteration_length']).')' : ''; ?></td><td style="text-align:right;font-size:13px;font-weight:500;">+₹<?php echo number_format($bill['alteration_charge'], 2); ?></td></tr>
+                <?php endif; ?>
                 <tr>
                     <td style="padding:12px 0 5px;border-top:2px solid #E2E8F0;font-size:16px;font-weight:700;color:#1E293B;">Grand Total</td>
                     <td style="text-align:right;padding:12px 0 5px;border-top:2px solid #E2E8F0;font-size:18px;font-weight:800;color:#F97316;">₹<?php echo number_format($bill['total_amount'], 2); ?></td>
@@ -205,7 +213,18 @@ include_once __DIR__ . '/../../includes/header.php';
         </div>
     </div>
 
-    <div style="margin-top:32px;padding-top:16px;border-top:1.5px solid #F1F5F9;text-align:center;">
+    <?php if (!empty($return_policy_en) || !empty($return_policy_mr)): ?>
+    <div style="margin-top:28px;padding:12px;border:1.5px solid #1E293B;border-radius:6px;text-align:center;">
+        <?php if (!empty($return_policy_en)): ?>
+            <div style="font-size:13px;font-weight:800;color:#1E293B;letter-spacing:0.5px;text-transform:uppercase;"><?php echo sanitize($return_policy_en); ?></div>
+        <?php endif; ?>
+        <?php if (!empty($return_policy_mr)): ?>
+            <div style="font-size:12px;font-weight:700;color:#1E293B;margin-top:4px;"><?php echo sanitize($return_policy_mr); ?></div>
+        <?php endif; ?>
+    </div>
+    <?php endif; ?>
+
+    <div style="margin-top:20px;padding-top:16px;border-top:1.5px solid #F1F5F9;text-align:center;">
         <p style="font-size:11px;color:#94A3B8;">This is a computer-generated invoice. No signature required. &nbsp;|&nbsp; <?php echo sanitize($company_name); ?></p>
     </div>
 </div>

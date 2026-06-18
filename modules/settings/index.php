@@ -152,6 +152,18 @@ include_once __DIR__ . '/../../includes/header.php';
                     <div class="form-group"><label class="form-label">Website</label><input type="text" name="website" class="form-control" value="<?php echo sanitize($settings['website'] ?? ''); ?>"></div>
                 </div>
 
+                <?php $owner_branches = $pdo->query("SELECT id, name FROM branches WHERE status='active' ORDER BY (code='MAIN') DESC, name ASC")->fetchAll(); ?>
+                <div class="form-group mt-3 pt-3 border-top border-secondary">
+                    <label class="form-label">Owner's Operating Branch (for billing)</label>
+                    <select name="owner_branch_id" class="form-control" style="max-width:320px;">
+                        <option value="">Main Branch (default)</option>
+                        <?php foreach ($owner_branches as $ob): ?>
+                            <option value="<?php echo $ob['id']; ?>" <?php echo ($settings['owner_branch_id'] ?? '') == $ob['id'] ? 'selected' : ''; ?>><?php echo sanitize($ob['name']); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <small class="text-muted d-block mt-1">When the owner (superadmin) opens the POS, bills are created for this branch. Other roles always bill for their own branch. Oversight pages (dashboard, reports) still show all branches.</small>
+                </div>
+
             <?php elseif ($active_tab === 'invoice'): ?>
                 <div class="form-row">
                     <div class="form-group">
@@ -180,6 +192,16 @@ include_once __DIR__ . '/../../includes/header.php';
                 <div class="form-group mt-3">
                     <label class="form-label">Invoice Footer (Public)</label>
                     <textarea name="invoice_footer" class="form-control" rows="2"><?php echo sanitize($settings['invoice_footer'] ?? ''); ?></textarea>
+                </div>
+
+                <div class="form-group mt-3">
+                    <label class="form-label">Return Policy — English (bold, printed on bill)</label>
+                    <textarea name="return_policy_en" class="form-control" rows="2"><?php echo sanitize($settings['return_policy_en'] ?? 'NO RETURN • NO EXCHANGE • NO REFUND'); ?></textarea>
+                </div>
+
+                <div class="form-group mt-3">
+                    <label class="form-label">Return Policy — Marathi (bold, printed on bill)</label>
+                    <textarea name="return_policy_mr" class="form-control" rows="2"><?php echo sanitize($settings['return_policy_mr'] ?? 'माल विकला गेला आहे. परतावा, बदल किंवा पैसे परत मिळणार नाहीत.'); ?></textarea>
                 </div>
 
                 <div class="form-row mt-3">

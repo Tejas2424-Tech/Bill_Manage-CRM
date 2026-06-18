@@ -27,6 +27,13 @@ if ($range === 'today') {
 } elseif ($range === 'this_month') {
     $date_from = date('Y-m-01');
     $date_to = date('Y-m-d');
+} elseif ($range === 'yearly') {
+    $date_from = date('Y-01-01');
+    $date_to = date('Y-m-d');
+} elseif ($range === 'financial_year') {
+    $fy_start = ((int)date('n') >= 4) ? (int)date('Y') : (int)date('Y') - 1;   // FY starts 1 April
+    $date_from = $fy_start . '-04-01';
+    $date_to = date('Y-m-d');
 }
 
 if (!$date_from) $date_from = date('Y-m-01');
@@ -125,6 +132,8 @@ include_once __DIR__ . '/../../includes/header.php';
         <a href="?range=today" class="btn btn-outline btn-sm <?php echo $range === 'today' ? 'active' : ''; ?>">Today</a>
         <a href="?range=this_week" class="btn btn-outline btn-sm <?php echo $range === 'this_week' ? 'active' : ''; ?>">This Week</a>
         <a href="?range=this_month" class="btn btn-outline btn-sm <?php echo $range === 'this_month' ? 'active' : ''; ?>">This Month</a>
+        <a href="?range=yearly" class="btn btn-outline btn-sm <?php echo $range === 'yearly' ? 'active' : ''; ?>">Yearly</a>
+        <a href="?range=financial_year" class="btn btn-outline btn-sm <?php echo $range === 'financial_year' ? 'active' : ''; ?>">Financial Year</a>
     </div>
 
     <form action="" method="GET" class="d-flex gap-2 flex-grow-1">

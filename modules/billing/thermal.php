@@ -29,6 +29,8 @@ $company_name = getSettingValue('company_name') ?: 'BillManage';
 $company_logo = getSettingValue('company_logo');
 $gst_number = getSettingValue('gst_number') ?: '';
 $invoice_prefix = getSettingValue('invoice_prefix') ?: 'INV-';
+$return_policy_en = getSettingValue('return_policy_en') ?: 'NO RETURN • NO EXCHANGE • NO REFUND';
+$return_policy_mr = getSettingValue('return_policy_mr') ?: 'माल विकला गेला आहे. परतावा, बदल किंवा पैसे परत मिळणार नाहीत.';
 $show_gst = getSettingValue('show_gst') ?? '1';
 ?>
 <!DOCTYPE html>
@@ -76,7 +78,7 @@ $show_gst = getSettingValue('show_gst') ?? '1';
     <table class="item-table">
         <?php foreach ($items as $item): ?>
             <tr>
-                <td colspan="3"><?php echo sanitize($item['product_name']); ?></td>
+                <td colspan="3"><?php echo sanitize($item['product_name']); ?><?php echo !empty($item['size']) ? ' (' . sanitize($item['size']) . ')' : ''; ?></td>
             </tr>
             <tr>
                 <td style="width: 40%;"><?php echo $item['quantity']; ?> x <?php echo number_format($item['selling_price'], 2); ?></td>
@@ -103,6 +105,12 @@ $show_gst = getSettingValue('show_gst') ?? '1';
             <td>GST (<?php echo $bill['gst_percent']; ?>%):</td>
             <td class="text-right"><?php echo number_format($bill['gst_amount'], 2); ?></td>
         </tr>
+        <?php if (!empty($bill['alteration_charge']) && $bill['alteration_charge'] > 0): ?>
+        <tr>
+            <td>Alteration<?php echo $bill['alteration_length'] ? ' (L:'.sanitize($bill['alteration_length']).')' : ''; ?>:</td>
+            <td class="text-right">+<?php echo number_format($bill['alteration_charge'], 2); ?></td>
+        </tr>
+        <?php endif; ?>
         <tr style="font-weight: bold; font-size: 14px;">
             <td>GRAND TOTAL:</td>
             <td class="text-right"><?php echo number_format($bill['total_amount'], 2); ?></td>
@@ -120,6 +128,14 @@ $show_gst = getSettingValue('show_gst') ?? '1';
     </table>
 
     <div class="divider"></div>
+
+    <?php if (!empty($return_policy_en) || !empty($return_policy_mr)): ?>
+    <div class="text-center" style="font-size: 10px; font-weight: bold; line-height: 1.4; margin-bottom: 6px;">
+        <?php if (!empty($return_policy_en)): ?><?php echo sanitize($return_policy_en); ?><br><?php endif; ?>
+        <?php if (!empty($return_policy_mr)): ?><?php echo sanitize($return_policy_mr); ?><?php endif; ?>
+    </div>
+    <div class="divider"></div>
+    <?php endif; ?>
 
     <div class="text-center" style="font-size: 10px;">
         THANK YOU FOR SHOPPING!<br>

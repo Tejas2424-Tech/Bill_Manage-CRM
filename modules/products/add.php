@@ -32,6 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect('index.php');
     }
     $name = sanitize($_POST['name'] ?? '');
+    $size = sanitize($_POST['size'] ?? '');
     $sku = sanitize($_POST['sku'] ?? '');
     $barcode = sanitize($_POST['barcode'] ?? '');
     $category_id = $_POST['category_id'] ?: null;
@@ -79,13 +80,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (!$error) {
             if ($is_edit) {
-            $stmt = $pdo->prepare("UPDATE products SET name=?, sku=?, barcode=?, category_id=?, brand_id=?, unit=?, purchase_price=?, selling_price=?, quantity=?, alert_quantity=?, dead_stock_days=?, status=?, image=? WHERE id=?");
-            $stmt->execute([$name, $sku, $barcode, $category_id, $brand_id, $unit, $purchase_price, $selling_price, $quantity, $alert_quantity, $dead_stock_days, $status, $image_name, $product_id]);
+            $stmt = $pdo->prepare("UPDATE products SET name=?, size=?, sku=?, barcode=?, category_id=?, brand_id=?, unit=?, purchase_price=?, selling_price=?, quantity=?, alert_quantity=?, dead_stock_days=?, status=?, image=? WHERE id=?");
+            $stmt->execute([$name, $size, $sku, $barcode, $category_id, $brand_id, $unit, $purchase_price, $selling_price, $quantity, $alert_quantity, $dead_stock_days, $status, $image_name, $product_id]);
             logAudit('edit_product', 'products', "Updated product: $name (ID: $product_id)");
             flashMessage('success', 'Product updated successfully.');
         } else {
-            $stmt = $pdo->prepare("INSERT INTO products (branch_id, name, sku, barcode, category_id, brand_id, unit, purchase_price, selling_price, quantity, alert_quantity, dead_stock_days, status, image) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-            $stmt->execute([$branch_id, $name, $sku, $barcode, $category_id, $brand_id, $unit, $purchase_price, $selling_price, $quantity, $alert_quantity, $dead_stock_days, $status, $image_name]);
+            $stmt = $pdo->prepare("INSERT INTO products (branch_id, name, size, sku, barcode, category_id, brand_id, unit, purchase_price, selling_price, quantity, alert_quantity, dead_stock_days, status, image) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->execute([$branch_id, $name, $size, $sku, $barcode, $category_id, $brand_id, $unit, $purchase_price, $selling_price, $quantity, $alert_quantity, $dead_stock_days, $status, $image_name]);
             $new_id = $pdo->lastInsertId();
             logAudit('add_product', 'products', "Added new product: $name (ID: $new_id)");
             flashMessage('success', 'Product added successfully.');
@@ -186,14 +187,25 @@ include_once __DIR__ . '/../../includes/header.php';
                             </div>
                         </div>
 
-                        <div class="form-group mt-3">
-                            <label class="form-label">Unit</label>
-                            <select name="unit" class="form-control">
-                                <?php $units = ['pcs', 'kg', 'L', 'dozen', 'box', 'strip', 'other']; 
-                                foreach ($units as $u): ?>
-                                    <option value="<?php echo $u; ?>" <?php echo ($product['unit'] ?? 'pcs') == $u ? 'selected' : ''; ?>><?php echo $u; ?></option>
-                                <?php endforeach; ?>
-                            </select>
+                        <div class="form-row mt-3">
+                            <div class="form-group">
+                                <label class="form-label">Size</label>
+                                <input type="text" name="size" class="form-control" list="sizeOptions" placeholder="e.g. XL, 32, Free Size" value="<?php echo sanitize($product['size'] ?? ''); ?>">
+                                <datalist id="sizeOptions">
+                                    <?php foreach (['S','M','L','XL','XXL','XXXL','Free Size','28','30','32','34','36','38','40','42','44','46'] as $sz): ?>
+                                        <option value="<?php echo $sz; ?>"></option>
+                                    <?php endforeach; ?>
+                                </datalist>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Unit</label>
+                                <select name="unit" class="form-control">
+                                    <?php $units = ['pcs', 'kg', 'L', 'dozen', 'box', 'strip', 'other'];
+                                    foreach ($units as $u): ?>
+                                        <option value="<?php echo $u; ?>" <?php echo ($product['unit'] ?? 'pcs') == $u ? 'selected' : ''; ?>><?php echo $u; ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
                         </div>
                     </div>
 

@@ -42,19 +42,38 @@ function formatDateTime($dt) {
 }
 
 /**
- * Generate unique bill number (BRANCH-YEAR-00042)
+ * Generate a Financial-Year based bill number: BRANCH-FY-00001
+ *
+ * FY runs 1 April → 31 March; numbering restarts at 1 each FY, per branch.
+ * Uses the bill_counters table with an atomic INSERT … ON DUPLICATE KEY UPDATE
+ * so it is safe under concurrency (fixes the old COUNT+1 race). Intended to be
+ * called inside the bill's PDO transaction.
+ *
+ * @param string   $branch_code  branch code for the prefix
+ * @param int|null $branch_id    resolved branch id (pass explicitly — superadmin's
+ *                               session branch_id is NULL)
  */
-function generateBillNumber($branch_code) {
+function generateBillNumber($branch_code, $branch_id = null) {
     global $pdo;
-    $year = date('Y');
-    $branch_id = $_SESSION['branch_id'] ?? 0;
-    
-    $stmt = $pdo->prepare("SELECT COUNT(*) as total FROM bills WHERE branch_id = ? AND YEAR(created_at) = ?");
-    $stmt->execute([$branch_id, $year]);
-    $result = $stmt->fetch();
-    $count = ($result ? $result['total'] : 0) + 1;
-    
-    return strtoupper($branch_code) . '-' . $year . '-' . str_pad($count, 5, '0', STR_PAD_LEFT);
+    if ($branch_id === null) {
+        $branch_id = $_SESSION['branch_id'] ?? 0;
+    }
+    $branch_id = (int)$branch_id;
+
+    // Financial year: month >= April → Y/(Y+1), else (Y-1)/Y
+    $y = (int)date('Y');
+    $m = (int)date('n');
+    $start = ($m >= 4) ? $y : $y - 1;
+    $fy = $start . '-' . substr((string)($start + 1), -2);   // e.g. 2026-27
+
+    // Atomic increment + read-back via LAST_INSERT_ID()
+    $stmt = $pdo->prepare("INSERT INTO bill_counters (branch_id, fy, last_no)
+                           VALUES (?, ?, LAST_INSERT_ID(1))
+                           ON DUPLICATE KEY UPDATE last_no = LAST_INSERT_ID(last_no + 1)");
+    $stmt->execute([$branch_id, $fy]);
+    $no = (int)$pdo->lastInsertId();
+
+    return strtoupper($branch_code) . '-' . $fy . '-' . str_pad($no, 5, '0', STR_PAD_LEFT);
 }
 
 /**
@@ -82,6 +101,47 @@ function getSettingValue($key) {
     $stmt->execute([$key]);
     $result = $stmt->fetch();
     return $result ? $result['value'] : null;
+}
+
+/**
+ * Resolve the branch a user is currently *acting as* (for action pages like Billing).
+ *
+ * - Non-admins are always locked to their own session branch (identical to before).
+ * - The owner (superadmin, branch_id = NULL) gets an "operating branch": the branch
+ *   configured in the `owner_branch_id` setting if it is active, else the active
+ *   branch with code 'MAIN', else the lowest-id active branch.
+ *
+ * Oversight pages (dashboard/reports) keep using isAdmin() + their own switchers and
+ * should NOT use this helper.
+ *
+ * @return int A concrete branch id (0 only if no branch exists / not logged in).
+ */
+function getOperatingBranchId() {
+    global $pdo;
+
+    if (!isAdmin()) {
+        return (int)($_SESSION['branch_id'] ?? 0);
+    }
+
+    static $owner_branch = null;
+    if ($owner_branch !== null) {
+        return $owner_branch;
+    }
+
+    // 1. Configured operating branch (only if still active).
+    $configured = (int)(getSettingValue('owner_branch_id') ?: 0);
+    if ($configured > 0) {
+        $stmt = $pdo->prepare("SELECT id FROM branches WHERE id = ? AND status = 'active'");
+        $stmt->execute([$configured]);
+        if ($id = (int)$stmt->fetchColumn()) {
+            return $owner_branch = $id;
+        }
+    }
+
+    // 2. The MAIN branch, else the lowest-id active branch.
+    $id = (int)$pdo->query("SELECT id FROM branches WHERE status = 'active'
+                            ORDER BY (code = 'MAIN') DESC, id ASC LIMIT 1")->fetchColumn();
+    return $owner_branch = $id;
 }
 
 /**
@@ -225,6 +285,32 @@ function updateSetting($key, $value) {
     global $pdo;
     $stmt = $pdo->prepare("INSERT INTO settings (key_name, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = ?");
     $stmt->execute([$key, $value, $value]);
+}
+
+/**
+ * Resolve a report date range from a preset key.
+ * Presets: daily, weekly (Mon-start), monthly, yearly, financial_year (1 Apr–31 Mar), custom.
+ * Returns [from, to] as Y-m-d strings.
+ */
+function resolveReportRange($range, $from = '', $to = '') {
+    $today = date('Y-m-d');
+    switch ($range) {
+        case 'daily':          return [$today, $today];
+        case 'weekly':         return [date('Y-m-d', strtotime('monday this week')), $today];
+        case 'monthly':        return [date('Y-m-01'), $today];
+        case 'yearly':         return [date('Y-01-01'), $today];
+        case 'financial_year':
+            $y = (int)date('Y'); $m = (int)date('n');
+            $start = ($m >= 4) ? $y : $y - 1;     // FY starts 1 April
+            return [$start . '-04-01', $today];
+        case 'custom':         return [$from ?: date('Y-m-01'), $to ?: $today];
+        default:               return [date('Y-m-01'), $today];
+    }
+}
+
+/** Preset options for report range dropdowns (key => label). */
+function reportRangeOptions() {
+    return ['daily'=>'Daily','weekly'=>'Weekly','monthly'=>'Monthly','yearly'=>'Yearly','financial_year'=>'Financial Year','custom'=>'Custom'];
 }
 
 /**

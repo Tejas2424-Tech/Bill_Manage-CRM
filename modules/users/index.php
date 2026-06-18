@@ -101,8 +101,9 @@ include_once __DIR__ . '/../../includes/header.php';
                         $role_class = [
                             'superadmin' => 'badge-purple',
                             'branch_admin' => 'badge-primary',
-                            'staff' => 'badge-success'
-                        ][$u['role']];
+                            'staff' => 'badge-success',
+                            'cashier' => 'badge-warning'
+                        ][$u['role']] ?? 'badge-secondary';
                         ?>
                         <span class="badge-pill <?php echo $role_class; ?>">
                             <?php echo ucfirst(str_replace('_', ' ', $u['role'])); ?>

@@ -25,6 +25,10 @@ $stmt = $pdo->prepare("SELECT COUNT(*) FROM products WHERE status='active' AND q
 if (!isAdmin()) $stmt->execute([$branch_id]); else $stmt->execute();
 $low_stock_count = $stmt->fetchColumn();
 
+$stmt = $pdo->prepare("SELECT COALESCE(SUM(defective_quantity),0) FROM products WHERE status='active' " . (isAdmin() ? "" : " AND branch_id = ?"));
+if (!isAdmin()) $stmt->execute([$branch_id]); else $stmt->execute();
+$defective_units = $stmt->fetchColumn();
+
 // 2. Fetch Products for Inventory List
 $search = sanitize($_GET['search'] ?? '');
 $cat_id = (int)($_GET['category_id'] ?? 0);
@@ -87,7 +91,7 @@ include_once __DIR__ . '/../../includes/header.php';
 </div>
 
 <!-- Stat Row -->
-<div class="stat-grid" style="grid-template-columns:repeat(3,1fr);">
+<div class="stat-grid" style="grid-template-columns:repeat(4,1fr);">
     <div class="stat-card orange">
         <div class="stat-top"><div class="stat-icon"><i class="fas fa-indian-rupee-sign"></i></div></div>
         <div class="stat-value"><?php echo formatCurrency($total_stock_value); ?></div>
@@ -102,6 +106,11 @@ include_once __DIR__ . '/../../includes/header.php';
         <div class="stat-top"><div class="stat-icon"><i class="fas fa-triangle-exclamation"></i></div></div>
         <div class="stat-value"><?php echo $low_stock_count; ?></div>
         <div class="stat-label">Low Stock Items</div>
+    </div>
+    <div class="stat-card purple">
+        <div class="stat-top"><div class="stat-icon"><i class="fas fa-ban"></i></div></div>
+        <div class="stat-value"><?php echo $defective_units; ?></div>
+        <div class="stat-label">Defective Units</div>
     </div>
 </div>
 
@@ -133,6 +142,7 @@ include_once __DIR__ . '/../../includes/header.php';
                 <th>Product</th>
                 <th>Category</th>
                 <th>Current Qty</th>
+                <th>Defective</th>
                 <th>Alert Qty</th>
                 <th>Last Movement</th>
                 <th class="text-end">Actions</th>
@@ -147,11 +157,15 @@ include_once __DIR__ . '/../../includes/header.php';
                     </td>
                     <td><span class="fs-13"><?php echo $p['category_name'] ?: 'N/A'; ?></span></td>
                     <td>
-                        <?php 
+                        <?php
                         $qty = $p['quantity'];
                         $badge = $qty <= 0 ? 'badge-danger fw-700' : ($qty <= $p['alert_quantity'] ? 'badge-warning' : 'badge-success');
                         ?>
                         <span class="badge-pill <?php echo $badge; ?>"><?php echo $qty; ?> <?php echo $p['unit']; ?></span>
+                    </td>
+                    <td>
+                        <?php $defq = (int)($p['defective_quantity'] ?? 0); ?>
+                        <span class="badge-pill <?php echo $defq > 0 ? 'badge-danger' : ''; ?>" style="<?php echo $defq > 0 ? '' : 'color:var(--on-surface-subtle);'; ?>"><?php echo $defq; ?></span>
                     </td>
                     <td>
                         <div class="d-flex align-center gap-1">
@@ -166,6 +180,7 @@ include_once __DIR__ . '/../../includes/header.php';
                         <div class="d-flex justify-end gap-1">
                             <button onclick="openStockModal('in', <?php echo $p['id']; ?>, '<?php echo addslashes($p['name']); ?>', <?php echo $p['quantity']; ?>)" class="btn btn-ghost btn-icon btn-sm text-success" title="Stock In"><i class="fas fa-plus-circle"></i></button>
                             <button onclick="openStockModal('out', <?php echo $p['id']; ?>, '<?php echo addslashes($p['name']); ?>', <?php echo $p['quantity']; ?>)" class="btn btn-ghost btn-icon btn-sm text-danger" title="Stock Out"><i class="fas fa-minus-circle"></i></button>
+                            <button onclick="openDefectiveModal(<?php echo $p['id']; ?>, '<?php echo addslashes($p['name']); ?>', <?php echo (int)$p['quantity']; ?>, <?php echo (int)($p['defective_quantity'] ?? 0); ?>)" class="btn btn-ghost btn-icon btn-sm" style="color:var(--purple);" title="Move to/from Defective"><i class="fas fa-ban"></i></button>
                             <a href="adjust.php?product_id=<?php echo $p['id']; ?>" class="btn btn-ghost btn-icon btn-sm text-warning" title="Adjust"><i class="fas fa-sliders"></i></a>
                             <a href="history.php?product_id=<?php echo $p['id']; ?>" class="btn btn-ghost btn-icon btn-sm text-info" title="History"><i class="fas fa-history"></i></a>
                         </div>
@@ -212,7 +227,73 @@ include_once __DIR__ . '/../../includes/header.php';
     </div>
 </div>
 
+<!-- Defective Move Modal -->
+<div id="defectiveModal" class="modal-overlay">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3 class="modal-title">Defective Stock</h3>
+            <button class="modal-close" onclick="closeModal('defectiveModal')">&times;</button>
+        </div>
+        <form action="defective.php" id="defectiveForm" method="POST">
+            <input type="hidden" name="csrf_token" value="<?php echo $csrf_token; ?>">
+            <input type="hidden" name="product_id" id="defProdId">
+
+            <div class="mb-3">
+                <label class="form-label">Product</label>
+                <div id="defProdName" class="fw-600 fs-16 text-primary"></div>
+                <div class="fs-12 text-muted mt-1">Normal: <span id="defNormal">0</span> &nbsp;|&nbsp; Defective: <span id="defDefective">0</span></div>
+            </div>
+
+            <div class="form-group mb-3">
+                <label class="form-label">Direction</label>
+                <select name="direction" id="defDirection" class="form-control" onchange="updateDefHint()">
+                    <option value="to_defective">Normal → Defective (mark damaged)</option>
+                    <option value="to_normal">Defective → Normal (restore)</option>
+                </select>
+            </div>
+
+            <div class="form-group mb-3">
+                <label class="form-label">Quantity*</label>
+                <input type="number" name="quantity" id="defQty" class="form-control" required min="1">
+                <div class="form-hint" id="defHint"></div>
+            </div>
+
+            <div class="form-group mb-3">
+                <label class="form-label">Note / Reason</label>
+                <textarea name="note" class="form-control" rows="2" placeholder="e.g. torn seam, stain..."></textarea>
+            </div>
+
+            <div class="d-flex justify-end gap-2 mt-4">
+                <button type="button" class="btn btn-outline" onclick="closeModal('defectiveModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Confirm Move</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
+let defNormal = 0, defDefective = 0;
+
+function openDefectiveModal(id, name, normalQty, defectiveQty) {
+    defNormal = normalQty; defDefective = defectiveQty;
+    document.getElementById('defProdId').value = id;
+    document.getElementById('defProdName').innerText = name;
+    document.getElementById('defNormal').innerText = normalQty;
+    document.getElementById('defDefective').innerText = defectiveQty;
+    document.getElementById('defDirection').value = 'to_defective';
+    document.getElementById('defQty').value = '';
+    updateDefHint();
+    openModal('defectiveModal');
+}
+
+function updateDefHint() {
+    const dir = document.getElementById('defDirection').value;
+    const max = dir === 'to_defective' ? defNormal : defDefective;
+    const el = document.getElementById('defHint');
+    el.innerText = 'Max movable: ' + max + (dir === 'to_defective' ? ' (from normal stock)' : ' (from defective stock)');
+    document.getElementById('defQty').max = max;
+}
+
 let currentStock = 0;
 let actionType = 'in';
 

@@ -1,6 +1,9 @@
 Feature,Status,Confidence,Evidence Files
 Billing - core POS (cart/total/print),Exists,High,modules/billing/create.php; modules/billing/invoice.php; modules/billing/thermal.php
-Billing - payment cash/online/credit,Exists,High,modules/billing/create.php:258
+Billing - payment cash,Exists,High,modules/billing/create.php:254
+Billing - payment credit,Exists,High,modules/billing/create.php:266
+Billing - payment online,Broken,High,modules/billing/create.php:258 (bill_type enum is cash/credit only + STRICT mode -> save fails)
+Billing - payment card (not in spec),Broken,High,modules/billing/create.php:262 (enum rejects value)
 Billing - customer Date of Birth capture,Missing,High,database.sql (no DOB column); modules/billing/create.php
 Billing - product Size on line item,Missing,High,database.sql (products/bill_items have no size)
 Billing - discount auto-selection bands (15-19->15% etc),Missing,High,modules/billing/create.php (no banded JS)
@@ -21,21 +24,24 @@ Stock Check - Size filter + Defective qty column,Missing,High,modules/inventory/
 Today's Sales - total sales + profit,Exists,High,modules/dashboard/index.php:29
 Today's Sales - total bills count,Missing,Medium,modules/dashboard/index.php
 Today's Sales - cash vs online collection split,Missing,Medium,modules/dashboard/index.php
-Today's Sales - category-wise sales,Missing,High,modules/dashboard/index.php; modules/reports/sales.php
+Today's Sales - category-wise sales (today tile),Missing,High,modules/dashboard/index.php (exists in Sales Report sales.php:74-84)
 Birthday Module,Missing,High,no DOB column in database.sql; no modules/birthday/
 Alteration Management Module,Missing,High,no table in database.sql; no modules/alteration/
 Reports - Sales Report,Exists,High,modules/reports/sales.php
 Reports - Stock Report,Exists,High,modules/reports/inventory.php
 Reports - Discount Report,Missing,High,modules/reports/ (none)
-Reports - Product Sales Report,Missing,Medium,modules/reports/ (profit.php is profit not product-sales)
+Reports - Product Sales Report,Partial,High,modules/reports/sales.php:62-71 (embedded top-10; no standalone filterable page)
 Reports - Exchange Report,Missing,High,modules/reports/ (no exchange module)
 Reports - Defective Report,Missing,High,modules/reports/ (no defective module)
 Reports - Alteration Report,Missing,High,modules/reports/ (no alteration module)
-Reports - Financial-Year filter,Missing,Medium,modules/reports/ (no FY filter)
-Reports - Mon-Sun weekly logic,Missing,Medium,modules/reports/ (not implemented)
+Reports - Financial-Year filter,Missing,High,modules/reports/sales.php:19-32 (only today/this_week/this_month/custom)
+Reports - Yearly filter,Missing,High,modules/reports/sales.php:19-32 (no yearly preset)
+Reports - Monday-start weekly,Exists,High,modules/reports/sales.php:25 (strtotime('monday this week'))
 Dashboard - Admin today sales/profit,Exists,High,modules/dashboard/index.php
 Dashboard - Defective Stock tile,Missing,High,modules/dashboard/index.php (no defective)
 Dashboard - Birthday Customers,Missing,High,modules/dashboard/index.php
-Dashboard - dedicated Cashier dashboard,Missing,Medium,modules/dashboard/index.php (single dashboard)
+Dashboard - non-admin quick-action view,Partial,High,modules/dashboard/index.php:116 (exists; lacks Exchange/Defective/Birthday/Search; links blocked Stock-In)
+Print footer - configurable A4 invoice footer,Partial,High,modules/billing/invoice.php:185 (invoice_footer setting; thermal hardcoded; no Marathi/NO-RETURN default)
+Customer master table (FK identity),Missing,High,database.sql (only credit_customers; bills keyed by free-text phone)
 Roles - Admin/Cashier (superadmin/branch_admin/cashier),Exists,High,includes/auth.php
 Roles - cashier access to Exchange/Defective/StockCheck/Today/Birthday,Partial,High,includes/auth.php (requireNotCashier on several target pages)

@@ -176,7 +176,7 @@ include_once __DIR__ . '/../../includes/header.php';
                                     </div>
                                 <?php endif; ?>
                                 <div>
-                                    <div style="font-weight:600;color:var(--on-surface);"><?php echo sanitize($p['name']); ?></div>
+                                    <div style="font-weight:600;color:var(--on-surface);"><?php echo sanitize($p['name']); ?><?php if (!empty($p['size'])): ?> <span style="font-size:11px;color:var(--on-surface);font-weight:500;">(Size: <?php echo sanitize($p['size']); ?>)</span><?php endif; ?></div>
                                     <div style="font-size:11px;color:var(--on-surface-subtle);margin-top:2px;">SKU: <?php echo sanitize($p['sku']); ?> &nbsp;|&nbsp; <?php echo sanitize($p['barcode']); ?></div>
                                     <?php if ($p['brand_name']): ?><div style="font-size:10px;color:var(--on-surface-subtle);"><?php echo sanitize($p['brand_name']); ?></div><?php endif; ?>
                                 </div>

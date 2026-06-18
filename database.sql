@@ -51,6 +51,7 @@ CREATE TABLE products (
     id INT AUTO_INCREMENT PRIMARY KEY,
     branch_id INT NOT NULL,
     name VARCHAR(200) NOT NULL,
+    size VARCHAR(20) NULL,
     sku VARCHAR(50),
     barcode VARCHAR(50),
     brand_id INT NULL,
@@ -58,6 +59,7 @@ CREATE TABLE products (
     purchase_price DECIMAL(10,2) DEFAULT 0,
     selling_price DECIMAL(10,2) DEFAULT 0,
     quantity INT DEFAULT 0,
+    defective_quantity INT NOT NULL DEFAULT 0,
     unit VARCHAR(20) DEFAULT 'pcs',
     alert_quantity INT DEFAULT 5,
     dead_stock_days INT DEFAULT 90,
@@ -75,6 +77,39 @@ CREATE TABLE products (
 -- Migration for existing installs: ALTER TABLE vendors ADD COLUMN notes TEXT NULL AFTER gst_number;
 -- Migration for existing installs: ALTER TABLE bills ADD COLUMN collector_name VARCHAR(100) NULL AFTER customer_phone;
 -- Migration for existing installs: ALTER TABLE users MODIFY COLUMN role ENUM('superadmin','branch_admin','staff','cashier') NOT NULL;
+-- Migration for existing installs: ALTER TABLE bills MODIFY COLUMN bill_type ENUM('cash','online','card','credit') DEFAULT 'cash';  -- POS already posts online/card; old enum (cash,credit) rejected them under STRICT mode
+-- Migration for existing installs: ALTER TABLE products ADD COLUMN size VARCHAR(20) NULL AFTER name;  -- garment size (free text: S/M/L/XL/XXL/28-46)
+-- Migration for existing installs: ALTER TABLE products ADD COLUMN defective_quantity INT NOT NULL DEFAULT 0 AFTER quantity;  -- non-sellable defective stock bucket
+-- Migration for existing installs: per-line size + per-bill alteration on the bill:
+--   ALTER TABLE bill_items ADD COLUMN size VARCHAR(20) NULL AFTER product_name;
+--   ALTER TABLE bills ADD COLUMN alteration_required TINYINT NOT NULL DEFAULT 0 AFTER paid_amount, ADD COLUMN alteration_length VARCHAR(50) NULL AFTER alteration_required, ADD COLUMN alteration_charge DECIMAL(10,2) NOT NULL DEFAULT 0 AFTER alteration_length;
+--   ALTER TABLE draft_bills ADD COLUMN alteration_required TINYINT NOT NULL DEFAULT 0, ADD COLUMN alteration_length VARCHAR(50) NULL, ADD COLUMN alteration_charge DECIMAL(10,2) NOT NULL DEFAULT 0;
+-- Migration for existing installs: customers master + customer/employee links (run as one block):
+--   CREATE TABLE customers (id INT AUTO_INCREMENT PRIMARY KEY, branch_id INT NOT NULL, name VARCHAR(100) NOT NULL, mobile VARCHAR(15) NOT NULL, date_of_birth DATE NULL, address TEXT NULL, created_by INT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE KEY uq_cust_branch_mobile (branch_id, mobile), FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE CASCADE, FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL) ENGINE=InnoDB;
+--   ALTER TABLE bills ADD COLUMN customer_id INT NULL AFTER branch_id, ADD COLUMN employee_name VARCHAR(100) NULL AFTER collector_name, ADD FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL;
+--   ALTER TABLE credit_customers ADD COLUMN customer_id INT NULL AFTER branch_id, ADD FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL;
+--   Backfill: INSERT INTO customers (branch_id,name,mobile,created_at) SELECT branch_id, MAX(name), phone, MIN(created_at) FROM (SELECT branch_id, customer_name name, customer_phone phone, created_at FROM bills WHERE customer_phone<>'' AND customer_phone IS NOT NULL UNION ALL SELECT branch_id, name, phone, created_at FROM credit_customers WHERE phone<>'' AND phone IS NOT NULL) s GROUP BY branch_id, phone;
+--   UPDATE bills b JOIN customers c ON c.branch_id=b.branch_id AND c.mobile=b.customer_phone SET b.customer_id=c.id WHERE b.customer_phone<>'';
+--   UPDATE credit_customers cc JOIN customers c ON c.branch_id=cc.branch_id AND c.mobile=cc.phone SET cc.customer_id=c.id WHERE cc.phone<>'';
+-- Migration for existing installs: ALTER TABLE bill_items ADD COLUMN discount_percent DECIMAL(5,2) DEFAULT 0 AFTER discount;  -- per-line discount % (custom, with 15-50% band shortcuts in POS)
+-- Migration for existing installs: Financial-Year bill numbering (resets to 1 each FY, 1 Apr–31 Mar, per branch):
+--   CREATE TABLE bill_counters (branch_id INT NOT NULL, fy VARCHAR(7) NOT NULL, last_no INT NOT NULL DEFAULT 0, PRIMARY KEY (branch_id, fy), FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE CASCADE) ENGINE=InnoDB;
+--   Seed current FY so numbering continues over existing bills (adjust FY + dates to the current year):
+--   INSERT INTO bill_counters (branch_id, fy, last_no) SELECT branch_id, '2026-27', COUNT(*) FROM bills WHERE created_at >= '2026-04-01' AND created_at < '2027-04-01' GROUP BY branch_id;
+-- Migration for existing installs: cancellation audit (admin-only cancel + required reason):
+--   ALTER TABLE bills ADD COLUMN cancel_reason VARCHAR(255) NULL AFTER status, ADD COLUMN cancelled_by INT NULL AFTER cancel_reason, ADD COLUMN cancelled_at TIMESTAMP NULL AFTER cancelled_by, ADD FOREIGN KEY (cancelled_by) REFERENCES users(id) ON DELETE SET NULL;
+-- Migration for existing installs: Draft bills (held carts; stock moves only on confirm):
+--   CREATE TABLE draft_bills (id INT AUTO_INCREMENT PRIMARY KEY, branch_id INT NOT NULL, customer_name VARCHAR(100) NULL, customer_phone VARCHAR(15) NULL, customer_dob DATE NULL, employee_name VARCHAR(100) NULL, bill_type ENUM('cash','online','card','credit') DEFAULT 'cash', cart_json LONGTEXT NOT NULL, subtotal DECIMAL(10,2) DEFAULT 0, discount_amount DECIMAL(10,2) DEFAULT 0, discount_percent DECIMAL(5,2) DEFAULT 0, gst_amount DECIMAL(10,2) DEFAULT 0, gst_percent DECIMAL(5,2) DEFAULT 0, total_amount DECIMAL(10,2) DEFAULT 0, created_by INT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE CASCADE, FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL) ENGINE=InnoDB;
+-- Migration for existing installs: Exchange module:
+--   CREATE TABLE exchanges (id INT AUTO_INCREMENT PRIMARY KEY, branch_id INT NOT NULL, customer_id INT NULL, original_bill_id INT NOT NULL, original_bill_item_id INT NOT NULL, old_product_id INT NULL, old_product_name VARCHAR(200) NULL, old_size VARCHAR(20) NULL, old_mrp DECIMAL(10,2) NOT NULL DEFAULT 0, old_discount_percent DECIMAL(5,2) NOT NULL DEFAULT 0, return_value DECIMAL(10,2) NOT NULL DEFAULT 0, new_product_id INT NOT NULL, new_product_name VARCHAR(200) NULL, new_size VARCHAR(20) NULL, new_mrp DECIMAL(10,2) NOT NULL DEFAULT 0, new_discount_percent DECIMAL(5,2) NOT NULL DEFAULT 0, new_final_price DECIMAL(10,2) NOT NULL DEFAULT 0, difference_paid DECIMAL(10,2) NOT NULL DEFAULT 0, payment_mode ENUM('cash','online','card') NULL, created_by INT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE CASCADE, FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL, FOREIGN KEY (original_bill_id) REFERENCES bills(id) ON DELETE CASCADE, FOREIGN KEY (new_product_id) REFERENCES products(id) ON DELETE RESTRICT, FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL) ENGINE=InnoDB;
+-- Migration for existing installs: Defective Replacement module:
+--   CREATE TABLE defective_replacements (id INT AUTO_INCREMENT PRIMARY KEY, branch_id INT NOT NULL, customer_id INT NULL, original_bill_id INT NOT NULL, original_bill_item_id INT NOT NULL, defective_product_id INT NULL, defective_product_name VARCHAR(200) NULL, defective_size VARCHAR(20) NULL, defect_reason VARCHAR(255) NOT NULL, original_price DECIMAL(10,2) NOT NULL DEFAULT 0, original_discount_percent DECIMAL(5,2) NOT NULL DEFAULT 0, final_sale_price DECIMAL(10,2) NOT NULL DEFAULT 0, replacement_product_id INT NOT NULL, replacement_product_name VARCHAR(200) NULL, replacement_size VARCHAR(20) NULL, replacement_mrp DECIMAL(10,2) NOT NULL DEFAULT 0, replacement_discount_percent DECIMAL(5,2) NOT NULL DEFAULT 0, replacement_final_price DECIMAL(10,2) NOT NULL DEFAULT 0, created_by INT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE CASCADE, FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL, FOREIGN KEY (original_bill_id) REFERENCES bills(id) ON DELETE CASCADE, FOREIGN KEY (replacement_product_id) REFERENCES products(id) ON DELETE RESTRICT, FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL) ENGINE=InnoDB;
+-- Migration for existing installs: Alteration Management module:
+--   CREATE TABLE alterations (id INT AUTO_INCREMENT PRIMARY KEY, branch_id INT NOT NULL, customer_id INT NULL, customer_name VARCHAR(100) NOT NULL, mobile VARCHAR(15) NULL, bill_number VARCHAR(30) NULL, product_name VARCHAR(200) NULL, alteration_type VARCHAR(100) NOT NULL, alteration_charge DECIMAL(10,2) NOT NULL DEFAULT 0, alteration_date DATE NOT NULL, status ENUM('pending','ready','delivered') NOT NULL DEFAULT 'pending', created_by INT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE CASCADE, FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL, FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL) ENGINE=InnoDB;
+-- Migration for existing installs: NO-RETURN print footer (bold, EN + Marathi; editable in Settings > Invoice):
+--   INSERT INTO settings (key_name, value) VALUES ('return_policy_en','NO RETURN • NO EXCHANGE • NO REFUND'), ('return_policy_mr','माल विकला गेला आहे. परतावा, बदल किंवा पैसे परत मिळणार नाहीत.') ON DUPLICATE KEY UPDATE value = value;
+-- Migration for existing installs: Owner's operating branch (which branch the superadmin bills as in POS; empty = Main):
+--   INSERT INTO settings (key_name, value) VALUES ('owner_branch_id','') ON DUPLICATE KEY UPDATE value = value;
 
 -- 6. Inventory Log Table
 CREATE TABLE inventory_log (
@@ -136,15 +171,32 @@ CREATE TABLE purchase_items (
     FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+-- 9b. Customers Master Table (unified customer identity: billing, search, birthday)
+CREATE TABLE customers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    branch_id INT NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    mobile VARCHAR(15) NOT NULL,
+    date_of_birth DATE NULL,
+    address TEXT NULL,
+    created_by INT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_cust_branch_mobile (branch_id, mobile),
+    FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE CASCADE,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
 -- 10. Bills Table
 CREATE TABLE bills (
     id INT AUTO_INCREMENT PRIMARY KEY,
     branch_id INT NOT NULL,
+    customer_id INT NULL,
     bill_number VARCHAR(30) NOT NULL,
     customer_name VARCHAR(100) NULL,
     customer_phone VARCHAR(15) NULL,
     collector_name VARCHAR(100) NULL,
-    bill_type ENUM('cash', 'credit') DEFAULT 'cash',
+    employee_name VARCHAR(100) NULL,
+    bill_type ENUM('cash', 'online', 'card', 'credit') DEFAULT 'cash',
     subtotal DECIMAL(10,2) DEFAULT 0,
     discount_amount DECIMAL(10,2) DEFAULT 0,
     discount_percent DECIMAL(5,2) DEFAULT 0,
@@ -152,10 +204,18 @@ CREATE TABLE bills (
     gst_percent DECIMAL(5,2) DEFAULT 0,
     total_amount DECIMAL(10,2) DEFAULT 0,
     paid_amount DECIMAL(10,2) DEFAULT 0,
+    alteration_required TINYINT NOT NULL DEFAULT 0,
+    alteration_length VARCHAR(50) NULL,
+    alteration_charge DECIMAL(10,2) NOT NULL DEFAULT 0,
     status ENUM('paid', 'credit', 'partial', 'cancelled') DEFAULT 'paid',
+    cancel_reason VARCHAR(255) NULL,
+    cancelled_by INT NULL,
+    cancelled_at TIMESTAMP NULL,
     created_by INT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE CASCADE,
+    FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL,
+    FOREIGN KEY (cancelled_by) REFERENCES users(id) ON DELETE SET NULL,
     FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
@@ -165,9 +225,11 @@ CREATE TABLE bill_items (
     bill_id INT NOT NULL,
     product_id INT NULL,
     product_name VARCHAR(200) NOT NULL,
+    size VARCHAR(20) NULL,
     selling_price DECIMAL(10,2) NOT NULL,
     quantity INT NOT NULL,
     discount DECIMAL(10,2) DEFAULT 0,
+    discount_percent DECIMAL(5,2) DEFAULT 0,
     total DECIMAL(10,2) NOT NULL,
     FOREIGN KEY (bill_id) REFERENCES bills(id) ON DELETE CASCADE,
     FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
@@ -177,6 +239,7 @@ CREATE TABLE bill_items (
 CREATE TABLE credit_customers (
     id INT AUTO_INCREMENT PRIMARY KEY,
     branch_id INT NOT NULL,
+    customer_id INT NULL,
     name VARCHAR(100) NOT NULL,
     phone VARCHAR(15),
     address TEXT NULL,
@@ -185,6 +248,7 @@ CREATE TABLE credit_customers (
     created_by INT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE CASCADE,
+    FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL,
     FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
@@ -200,6 +264,111 @@ CREATE TABLE credit_payments (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (credit_customer_id) REFERENCES credit_customers(id) ON DELETE CASCADE,
     FOREIGN KEY (bill_id) REFERENCES bills(id) ON DELETE SET NULL,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+-- 13a. Exchanges Table (product exchange: return old item, take new item, pay difference)
+CREATE TABLE exchanges (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    branch_id INT NOT NULL,
+    customer_id INT NULL,
+    original_bill_id INT NOT NULL,
+    original_bill_item_id INT NOT NULL,
+    old_product_id INT NULL,
+    old_product_name VARCHAR(200) NULL,
+    old_size VARCHAR(20) NULL,
+    old_mrp DECIMAL(10,2) NOT NULL DEFAULT 0,
+    old_discount_percent DECIMAL(5,2) NOT NULL DEFAULT 0,
+    return_value DECIMAL(10,2) NOT NULL DEFAULT 0,
+    new_product_id INT NOT NULL,
+    new_product_name VARCHAR(200) NULL,
+    new_size VARCHAR(20) NULL,
+    new_mrp DECIMAL(10,2) NOT NULL DEFAULT 0,
+    new_discount_percent DECIMAL(5,2) NOT NULL DEFAULT 0,
+    new_final_price DECIMAL(10,2) NOT NULL DEFAULT 0,
+    difference_paid DECIMAL(10,2) NOT NULL DEFAULT 0,
+    payment_mode ENUM('cash', 'online', 'card') NULL,
+    created_by INT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE CASCADE,
+    FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL,
+    FOREIGN KEY (original_bill_id) REFERENCES bills(id) ON DELETE CASCADE,
+    FOREIGN KEY (new_product_id) REFERENCES products(id) ON DELETE RESTRICT,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+-- 13c. Defective Replacements Table (defective item → replacement; sales unchanged)
+CREATE TABLE defective_replacements (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    branch_id INT NOT NULL,
+    customer_id INT NULL,
+    original_bill_id INT NOT NULL,
+    original_bill_item_id INT NOT NULL,
+    defective_product_id INT NULL,
+    defective_product_name VARCHAR(200) NULL,
+    defective_size VARCHAR(20) NULL,
+    defect_reason VARCHAR(255) NOT NULL,
+    original_price DECIMAL(10,2) NOT NULL DEFAULT 0,
+    original_discount_percent DECIMAL(5,2) NOT NULL DEFAULT 0,
+    final_sale_price DECIMAL(10,2) NOT NULL DEFAULT 0,
+    replacement_product_id INT NOT NULL,
+    replacement_product_name VARCHAR(200) NULL,
+    replacement_size VARCHAR(20) NULL,
+    replacement_mrp DECIMAL(10,2) NOT NULL DEFAULT 0,
+    replacement_discount_percent DECIMAL(5,2) NOT NULL DEFAULT 0,
+    replacement_final_price DECIMAL(10,2) NOT NULL DEFAULT 0,
+    created_by INT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE CASCADE,
+    FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL,
+    FOREIGN KEY (original_bill_id) REFERENCES bills(id) ON DELETE CASCADE,
+    FOREIGN KEY (replacement_product_id) REFERENCES products(id) ON DELETE RESTRICT,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+-- 13b. Alterations Table (tailoring/alteration jobs)
+CREATE TABLE alterations (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    branch_id INT NOT NULL,
+    customer_id INT NULL,
+    customer_name VARCHAR(100) NOT NULL,
+    mobile VARCHAR(15) NULL,
+    bill_number VARCHAR(30) NULL,
+    product_name VARCHAR(200) NULL,
+    alteration_type VARCHAR(100) NOT NULL,
+    alteration_charge DECIMAL(10,2) NOT NULL DEFAULT 0,
+    alteration_date DATE NOT NULL,
+    status ENUM('pending', 'ready', 'delivered') NOT NULL DEFAULT 'pending',
+    created_by INT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE CASCADE,
+    FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+-- 13d. Draft Bills Table (held carts; become real bills only on confirmation)
+CREATE TABLE draft_bills (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    branch_id INT NOT NULL,
+    customer_name VARCHAR(100) NULL,
+    customer_phone VARCHAR(15) NULL,
+    customer_dob DATE NULL,
+    employee_name VARCHAR(100) NULL,
+    bill_type ENUM('cash', 'online', 'card', 'credit') DEFAULT 'cash',
+    alteration_required TINYINT NOT NULL DEFAULT 0,
+    alteration_length VARCHAR(50) NULL,
+    alteration_charge DECIMAL(10,2) NOT NULL DEFAULT 0,
+    cart_json LONGTEXT NOT NULL,
+    subtotal DECIMAL(10,2) DEFAULT 0,
+    discount_amount DECIMAL(10,2) DEFAULT 0,
+    discount_percent DECIMAL(5,2) DEFAULT 0,
+    gst_amount DECIMAL(10,2) DEFAULT 0,
+    gst_percent DECIMAL(5,2) DEFAULT 0,
+    total_amount DECIMAL(10,2) DEFAULT 0,
+    created_by INT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE CASCADE,
     FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
@@ -275,6 +444,15 @@ CREATE TABLE settings (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
+-- 19. Bill Counters Table (atomic Financial-Year bill numbering, per branch)
+CREATE TABLE bill_counters (
+    branch_id INT NOT NULL,
+    fy VARCHAR(7) NOT NULL,          -- e.g. '2026-27'
+    last_no INT NOT NULL DEFAULT 0,
+    PRIMARY KEY (branch_id, fy),
+    FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
 -- Indexes
 CREATE INDEX idx_products_branch ON products(branch_id);
 CREATE INDEX idx_products_barcode ON products(barcode);
@@ -313,4 +491,7 @@ INSERT INTO settings (key_name, value) VALUES
 ('default_gst_percent', '18'),
 ('dead_stock_days', '90'),
 ('invoice_footer', 'Thank you for your business!'),
-('default_print_format', 'a4');
+('return_policy_en', 'NO RETURN • NO EXCHANGE • NO REFUND'),
+('return_policy_mr', 'माल विकला गेला आहे. परतावा, बदल किंवा पैसे परत मिळणार नाहीत.'),
+('default_print_format', 'a4'),
+('owner_branch_id', '');

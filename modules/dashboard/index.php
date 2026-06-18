@@ -33,6 +33,8 @@ $pending_credits = $exec_b("SELECT SUM(total_amount - paid_amount) as total FROM
 $total_products  = $exec_b("SELECT COUNT(*) as total FROM products WHERE status = 'active' $b_filter_sql")->fetch()['total'] ?? 0;
 $low_stock_count = $exec_b("SELECT COUNT(*) as total FROM products WHERE status = 'active' AND quantity <= alert_quantity $b_filter_sql")->fetch()['total'] ?? 0;
 $dead_stock_count = $exec_b("SELECT COUNT(*) as total FROM products p WHERE p.status = 'active' AND p.quantity > 0 $b_filter_sql AND p.id NOT IN (SELECT bi.product_id FROM bill_items bi JOIN bills b ON bi.bill_id = b.id WHERE b.created_at >= DATE_SUB(NOW(), INTERVAL 90 DAY) AND b.status != 'cancelled')")->fetch()['total'] ?? 0;
+$defective_units  = $exec_b("SELECT COALESCE(SUM(defective_quantity),0) as total FROM products WHERE status = 'active' $b_filter_sql")->fetch()['total'] ?? 0;
+$birthday_today   = $exec_b("SELECT COUNT(*) as total FROM customers WHERE date_of_birth IS NOT NULL AND MONTH(date_of_birth) = MONTH(CURDATE()) AND DAY(date_of_birth) = DAY(CURDATE()) $b_filter_sql")->fetch()['total'] ?? 0;
 
 $recent_bills_stmt = $pdo->prepare("SELECT * FROM bills WHERE 1=1 $b_filter_sql ORDER BY created_at DESC LIMIT 8");
 if ($b_filter_active) $recent_bills_stmt->execute([$b_filter_param]); else $recent_bills_stmt->execute();
@@ -86,6 +88,16 @@ include_once __DIR__ . '/../../includes/header.php';
 </div>
 <?php endif; ?>
 
+<?php if ($birthday_today > 0): ?>
+<div class="alert" style="background:var(--purple-light);border:1.5px solid #DDD6FE;color:#6D28D9;margin-bottom:16px;padding:12px 16px;border-radius:8px;display:flex;align-items:flex-start;gap:10px;font-size:13px;">
+    <i class="fas fa-cake-candles"></i>
+    <div>
+        <strong><?php echo $birthday_today; ?> customer<?php echo $birthday_today != 1 ? 's' : ''; ?></strong> have a birthday today.
+        <a href="<?php echo BASE_URL; ?>/modules/birthday/index.php" style="margin-left:8px;font-weight:600;color:#6D28D9;text-decoration:underline;">View Birthday List →</a>
+    </div>
+</div>
+<?php endif; ?>
+
 <!-- Page Header -->
 <div class="page-header">
     <div class="page-header-left">
@@ -116,18 +128,33 @@ include_once __DIR__ . '/../../includes/header.php';
 <?php if (!isAdmin()): ?>
 <div class="grid-4" style="margin-bottom:20px;">
     <?php
-    $qa = [
-        ['url' => BASE_URL.'/modules/billing/create.php',    'icon' => 'fa-cash-register', 'label' => 'New Bill',    'color' => 'orange'],
-        ['url' => BASE_URL.'/modules/inventory/stock_in.php', 'icon' => 'fa-plus-circle',   'label' => 'Stock In',   'color' => 'green'],
-        ['url' => BASE_URL.'/modules/products/add.php',       'icon' => 'fa-box',            'label' => 'Add Product','color' => 'blue'],
-        ['url' => BASE_URL.'/modules/expenses/add.php',       'icon' => 'fa-receipt',        'label' => 'Add Expense','color' => 'purple'],
-    ];
     $icon_styles = [
         'orange' => 'background:#FFF7ED;color:var(--primary)',
         'green'  => 'background:var(--success-light);color:var(--success)',
         'blue'   => 'background:var(--secondary-light);color:var(--secondary)',
         'purple' => 'background:var(--purple-light);color:var(--purple)',
+        'red'    => 'background:var(--danger-light);color:var(--danger)',
     ];
+    if (isCashier()) {
+        // Cashier dashboard actions (spec). Exchange/Defective appear once those modules exist.
+        $qa = [
+            ['url' => BASE_URL.'/modules/billing/create.php',   'icon' => 'fa-cash-register',     'label' => 'New Bill',        'color' => 'orange'],
+            ['url' => BASE_URL.'/modules/customers/search.php', 'icon' => 'fa-magnifying-glass',  'label' => 'Customer Search', 'color' => 'blue'],
+            ['url' => BASE_URL.'/modules/billing/today.php',    'icon' => 'fa-calendar-day',      'label' => "Today's Sales",   'color' => 'green'],
+            ['url' => BASE_URL.'/modules/birthday/index.php',   'icon' => 'fa-cake-candles',      'label' => 'Birthday List',   'color' => 'purple'],
+        ];
+        if (file_exists(__DIR__.'/../exchange/index.php')) {
+            $qa[] = ['url' => BASE_URL.'/modules/exchange/index.php', 'icon' => 'fa-right-left', 'label' => 'Exchange / Replace', 'color' => 'orange'];
+        }
+    } else {
+        // Staff / branch admin actions (unchanged).
+        $qa = [
+            ['url' => BASE_URL.'/modules/billing/create.php',    'icon' => 'fa-cash-register', 'label' => 'New Bill',    'color' => 'orange'],
+            ['url' => BASE_URL.'/modules/inventory/stock_in.php', 'icon' => 'fa-plus-circle',   'label' => 'Stock In',   'color' => 'green'],
+            ['url' => BASE_URL.'/modules/products/add.php',       'icon' => 'fa-box',            'label' => 'Add Product','color' => 'blue'],
+            ['url' => BASE_URL.'/modules/expenses/add.php',       'icon' => 'fa-receipt',        'label' => 'Add Expense','color' => 'purple'],
+        ];
+    }
     foreach ($qa as $q): ?>
         <a href="<?php echo $q['url']; ?>" style="background:var(--surface);border:1.5px solid var(--border);border-radius:12px;padding:18px 16px;text-align:center;text-decoration:none;display:block;transition:all 0.2s;box-shadow:var(--shadow-sm);"
            onmouseover="this.style.borderColor='var(--primary)';this.style.transform='translateY(-2px)';this.style.boxShadow='var(--shadow-md)'"
@@ -224,6 +251,13 @@ include_once __DIR__ . '/../../includes/header.php';
                     <a href="<?php echo BASE_URL; ?>/modules/inventory/alerts.php?tab=dead" class="badge-pill <?php echo $dead_stock_count > 0 ? 'badge-warning' : 'badge-success'; ?>" style="text-decoration:none;">
                         <?php if ($dead_stock_count > 0): ?><i class="fas fa-box-archive" style="font-size:10px;"></i><?php endif; ?>
                         <?php echo $dead_stock_count; ?> items
+                    </a>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <span style="font-size:13px;color:var(--on-surface-muted);">Defective Stock</span>
+                    <a href="<?php echo BASE_URL; ?>/modules/inventory/stock_check.php" class="badge-pill <?php echo $defective_units > 0 ? 'badge-danger' : 'badge-success'; ?>" style="text-decoration:none;">
+                        <?php if ($defective_units > 0): ?><i class="fas fa-ban" style="font-size:10px;"></i><?php endif; ?>
+                        <?php echo $defective_units; ?> units
                     </a>
                 </div>
             </div>
