@@ -109,7 +109,6 @@ $stmt = $pdo->prepare("SELECT e.*, u.name as created_by_name, b.name as branch_n
 $stmt->execute($params);
 $expenses = $stmt->fetchAll();
 
-$branches = $isAdmin ? $pdo->query("SELECT id, name FROM branches ORDER BY name ASC")->fetchAll() : [];
 
 $cat_badge = [
     'rent'           => 'badge-danger',
@@ -160,14 +159,6 @@ include_once __DIR__ . '/../../includes/header.php';
                 <option value="<?php echo $cat; ?>" <?php echo $category_filter===$cat ? 'selected':''; ?>><?php echo ucfirst($cat); ?></option>
             <?php endforeach; ?>
         </select>
-        <?php if ($isAdmin): ?>
-            <select name="branch_id" class="form-control" style="width:160px;">
-                <option value="0">All Branches</option>
-                <?php foreach ($branches as $br): ?>
-                    <option value="<?php echo $br['id']; ?>" <?php echo $selected_branch==$br['id'] ? 'selected':''; ?>><?php echo sanitize($br['name']); ?></option>
-                <?php endforeach; ?>
-            </select>
-        <?php endif; ?>
         <button type="submit" class="btn btn-outline"><i class="fas fa-filter"></i> Apply</button>
         <a href="expenses_report.php" class="btn btn-ghost">Clear</a>
     </form>

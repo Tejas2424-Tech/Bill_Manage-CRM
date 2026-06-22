@@ -104,47 +104,6 @@ function getSettingValue($key) {
 }
 
 /**
- * Resolve the branch a user is currently *acting as* (for action pages like Billing).
- *
- * - Non-admins are always locked to their own session branch (identical to before).
- * - The owner (superadmin, branch_id = NULL) gets an "operating branch": the branch
- *   configured in the `owner_branch_id` setting if it is active, else the active
- *   branch with code 'MAIN', else the lowest-id active branch.
- *
- * Oversight pages (dashboard/reports) keep using isAdmin() + their own switchers and
- * should NOT use this helper.
- *
- * @return int A concrete branch id (0 only if no branch exists / not logged in).
- */
-function getOperatingBranchId() {
-    global $pdo;
-
-    if (!isAdmin()) {
-        return (int)($_SESSION['branch_id'] ?? 0);
-    }
-
-    static $owner_branch = null;
-    if ($owner_branch !== null) {
-        return $owner_branch;
-    }
-
-    // 1. Configured operating branch (only if still active).
-    $configured = (int)(getSettingValue('owner_branch_id') ?: 0);
-    if ($configured > 0) {
-        $stmt = $pdo->prepare("SELECT id FROM branches WHERE id = ? AND status = 'active'");
-        $stmt->execute([$configured]);
-        if ($id = (int)$stmt->fetchColumn()) {
-            return $owner_branch = $id;
-        }
-    }
-
-    // 2. The MAIN branch, else the lowest-id active branch.
-    $id = (int)$pdo->query("SELECT id FROM branches WHERE status = 'active'
-                            ORDER BY (code = 'MAIN') DESC, id ASC LIMIT 1")->fetchColumn();
-    return $owner_branch = $id;
-}
-
-/**
  * Log activity to audit log
  */
 function logAudit($action, $module, $description) {

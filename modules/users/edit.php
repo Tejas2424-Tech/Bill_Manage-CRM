@@ -39,7 +39,6 @@ $pageTitle = 'Edit User';
 $breadcrumb = '<a href="' . BASE_URL . '/modules/users/index.php">Users</a><span class="sep"><i class="fas fa-chevron-right"></i></span><span class="current">Edit User</span>';
 
 $error = '';
-$branches = $pdo->query("SELECT id, name FROM branches WHERE status='active'")->fetchAll();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
@@ -50,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = sanitize($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
     $role = $_POST['role'] ?? $user['role'];
-    $branch_id = $role === 'superadmin' ? null : ($_POST['branch_id'] ?: null);
+    $branch_id = 1; // single-branch app: every user belongs to the one shop
     $status = $_POST['status'] ?? $user['status'];
 
     // Validation
@@ -125,33 +124,19 @@ include_once __DIR__ . '/../../includes/header.php';
                     <p class="form-hint">Only fill this if you want to change the user's password.</p>
                 </div>
 
-                <div class="form-row-3">
+                <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Role <span class="req">*</span></label>
                         <select name="role" id="roleSelect" class="form-control" required <?php echo (!isAdmin() && $user_id === (int)$_SESSION['user_id']) ? 'disabled' : ''; ?>>
                             <option value="cashier" <?php echo $user['role'] === 'cashier' ? 'selected' : ''; ?>>Cashier</option>
                             <option value="staff" <?php echo $user['role'] === 'staff' ? 'selected' : ''; ?>>Staff</option>
-                            <option value="branch_admin" <?php echo $user['role'] === 'branch_admin' ? 'selected' : ''; ?>>Branch Admin</option>
+                            <option value="branch_admin" <?php echo $user['role'] === 'branch_admin' ? 'selected' : ''; ?>>Manager</option>
                             <?php if (isAdmin()): ?>
                                 <option value="superadmin" <?php echo $user['role'] === 'superadmin' ? 'selected' : ''; ?>>Super Admin</option>
                             <?php endif; ?>
                         </select>
                         <?php if (!isAdmin() && $user_id === (int)$_SESSION['user_id']): ?>
                             <input type="hidden" name="role" value="<?php echo $user['role']; ?>">
-                        <?php endif; ?>
-                    </div>
-                    <div class="form-group" id="branchGroup">
-                        <label class="form-label">Branch <span class="req">*</span></label>
-                        <select name="branch_id" class="form-control" <?php echo (!isAdmin() && $user_id === (int)$_SESSION['user_id']) ? 'disabled' : ''; ?>>
-                            <option value="">Select Branch</option>
-                            <?php foreach ($branches as $b): ?>
-                                <option value="<?php echo $b['id']; ?>" <?php echo $user['branch_id'] == $b['id'] ? 'selected' : ''; ?>>
-                                    <?php echo $b['name']; ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                        <?php if (!isAdmin() && $user_id === (int)$_SESSION['user_id']): ?>
-                            <input type="hidden" name="branch_id" value="<?php echo $user['branch_id']; ?>">
                         <?php endif; ?>
                     </div>
                     <div class="form-group">
@@ -176,29 +161,5 @@ include_once __DIR__ . '/../../includes/header.php';
         </div>
     </div>
 </div>
-
-<script>
-    const roleSelect = document.getElementById('roleSelect');
-    const branchGroup = document.getElementById('branchGroup');
-    const branchSelect = branchGroup ? branchGroup.querySelector('select') : null;
-
-    function toggleBranchVisibility() {
-        if (!branchSelect) return;
-        if (roleSelect.value === 'superadmin') {
-            branchGroup.style.opacity = '0.5';
-            branchSelect.disabled = true;
-            branchSelect.required = false;
-        } else {
-            branchGroup.style.opacity = '1';
-            branchSelect.disabled = false;
-            branchSelect.required = true;
-        }
-    }
-
-    if (roleSelect) {
-        roleSelect.addEventListener('change', toggleBranchVisibility);
-        toggleBranchVisibility();
-    }
-</script>
 
 <?php include_once __DIR__ . '/../../includes/footer.php'; ?>

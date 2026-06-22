@@ -90,7 +90,7 @@ include_once __DIR__ . '/../../includes/header.php';
             <?php if ($company_logo): ?>
                 <img src="<?php echo BASE_URL; ?>/assets/images/logo/<?php echo $company_logo; ?>" class="invoice-logo" alt="Logo">
             <?php endif; ?>
-            <div style="font-size:22px;font-weight:800;color:#F97316;letter-spacing:-0.5px;"><?php echo sanitize($company_name); ?></div>
+            <div style="font-size:22px;font-weight:800;color:#6366F1;letter-spacing:-0.5px;"><?php echo sanitize($company_name); ?></div>
             <div style="font-size:12px;color:#64748B;margin-top:4px;line-height:1.6;">
                 <?php echo nl2br(sanitize($bill['branch_address'])); ?><br>
                 <i class="fas fa-phone" style="font-size:10px;"></i> <?php echo $bill['branch_phone']; ?>
@@ -203,7 +203,7 @@ include_once __DIR__ . '/../../includes/header.php';
                 <?php endif; ?>
                 <tr>
                     <td style="padding:12px 0 5px;border-top:2px solid #E2E8F0;font-size:16px;font-weight:700;color:#1E293B;">Grand Total</td>
-                    <td style="text-align:right;padding:12px 0 5px;border-top:2px solid #E2E8F0;font-size:18px;font-weight:800;color:#F97316;">₹<?php echo number_format($bill['total_amount'], 2); ?></td>
+                    <td style="text-align:right;padding:12px 0 5px;border-top:2px solid #E2E8F0;font-size:18px;font-weight:800;color:#6366F1;">₹<?php echo number_format($bill['total_amount'], 2); ?></td>
                 </tr>
                 <?php if ($bill['bill_type'] !== 'credit'): ?>
                     <tr><td style="padding:4px 0;font-size:12px;color:#94A3B8;">Received</td><td style="text-align:right;font-size:12px;color:#94A3B8;">₹<?php echo number_format($bill['paid_amount'], 2); ?></td></tr>

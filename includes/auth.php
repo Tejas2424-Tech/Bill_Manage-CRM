@@ -9,6 +9,13 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+// Single-branch app: there is exactly one shop (branch id 1). A logged-in user with
+// no branch in session (e.g. the legacy superadmin whose session predates the
+// single-branch switch) is normalized to branch 1 so all writes have a valid branch.
+if (isset($_SESSION['user_id']) && empty($_SESSION['branch_id'])) {
+    $_SESSION['branch_id'] = 1;
+}
+
 /**
  * Require user to be logged in
  */

@@ -106,7 +106,6 @@ $purchases = $stmt->fetchAll();
 // â”€â”€ Vendors for filter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 $vendor_where = $isAdmin ? "" : " AND branch_id = " . (int)$branch_id;
 $vendors = $pdo->query("SELECT id, name FROM vendors WHERE status=1 $vendor_where ORDER BY name ASC")->fetchAll();
-$branches = $isAdmin ? $pdo->query("SELECT id, name FROM branches ORDER BY name ASC")->fetchAll() : [];
 
 $csrf_token = generateCSRFToken();
 include_once __DIR__ . '/../../includes/header.php';
@@ -147,14 +146,6 @@ include_once __DIR__ . '/../../includes/header.php';
                 <option value="<?php echo $v['id']; ?>" <?php echo $vendor_filter==$v['id'] ? 'selected':''; ?>><?php echo sanitize($v['name']); ?></option>
             <?php endforeach; ?>
         </select>
-        <?php if ($isAdmin): ?>
-            <select name="branch_id" class="form-control" style="width:160px;">
-                <option value="0">All Branches</option>
-                <?php foreach ($branches as $br): ?>
-                    <option value="<?php echo $br['id']; ?>" <?php echo $selected_branch==$br['id'] ? 'selected':''; ?>><?php echo sanitize($br['name']); ?></option>
-                <?php endforeach; ?>
-            </select>
-        <?php endif; ?>
         <button type="submit" class="btn btn-outline"><i class="fas fa-filter"></i> Apply</button>
         <a href="vendor_purchases.php" class="btn btn-ghost">Clear</a>
     </form>

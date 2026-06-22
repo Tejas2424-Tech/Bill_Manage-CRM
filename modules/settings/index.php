@@ -44,10 +44,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // 2. Handle Text Settings
             foreach ($_POST as $key => $value) {
-                if (in_array($key, ['csrf_token', 'tab'])) continue;
-                
+                // Skip control fields and shop-detail fields (the latter live on the
+                // branches table, handled below — not in the settings store).
+                if (in_array($key, ['csrf_token', 'tab', 'shop_name', 'shop_address', 'shop_phone', 'shop_manager'])) continue;
+
                 // Handle checkboxes (if not in POST, they are off)
-                // For this implementation, we'll handle specific keys if needed, 
+                // For this implementation, we'll handle specific keys if needed,
                 // but a generic loop works for most.
                 updateSetting($key, $value);
             }
@@ -56,6 +58,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($active_tab === 'invoice') {
                 $show_gst = isset($_POST['show_gst']) ? '1' : '0';
                 updateSetting('show_gst', $show_gst);
+            }
+
+            // Shop details live on the single branch row (id 1) — these print on bills.
+            if ($active_tab === 'shop') {
+                $pdo->prepare("UPDATE branches SET name = ?, address = ?, phone = ?, manager_name = ? WHERE id = 1")
+                    ->execute([
+                        sanitize($_POST['shop_name'] ?? ''),
+                        sanitize($_POST['shop_address'] ?? ''),
+                        sanitize($_POST['shop_phone'] ?? ''),
+                        sanitize($_POST['shop_manager'] ?? ''),
+                    ]);
             }
 
             $pdo->commit();
@@ -76,6 +89,9 @@ while ($row = $stmt->fetch()) {
     $settings[$row['key_name']] = $row['value'];
 }
 
+// Shop (single branch) details — printed on bills/receipts.
+$shop = $pdo->query("SELECT name, address, phone, manager_name FROM branches WHERE id = 1")->fetch() ?: [];
+
 include_once __DIR__ . '/../../includes/header.php';
 ?>
 
@@ -94,6 +110,7 @@ include_once __DIR__ . '/../../includes/header.php';
 
 <div class="settings-nav">
     <a href="?tab=business" class="settings-nav-item <?php echo $active_tab === 'business' ? 'active' : ''; ?>">Business Info</a>
+    <a href="?tab=shop"     class="settings-nav-item <?php echo $active_tab === 'shop'     ? 'active' : ''; ?>">Shop Details</a>
     <a href="?tab=invoice"  class="settings-nav-item <?php echo $active_tab === 'invoice'  ? 'active' : ''; ?>">Invoice Settings</a>
     <a href="?tab=stock"    class="settings-nav-item <?php echo $active_tab === 'stock'    ? 'active' : ''; ?>">Stock &amp; Inventory</a>
     <a href="?tab=security" class="settings-nav-item <?php echo $active_tab === 'security' ? 'active' : ''; ?>">Security</a>
@@ -152,16 +169,25 @@ include_once __DIR__ . '/../../includes/header.php';
                     <div class="form-group"><label class="form-label">Website</label><input type="text" name="website" class="form-control" value="<?php echo sanitize($settings['website'] ?? ''); ?>"></div>
                 </div>
 
-                <?php $owner_branches = $pdo->query("SELECT id, name FROM branches WHERE status='active' ORDER BY (code='MAIN') DESC, name ASC")->fetchAll(); ?>
-                <div class="form-group mt-3 pt-3 border-top border-secondary">
-                    <label class="form-label">Owner's Operating Branch (for billing)</label>
-                    <select name="owner_branch_id" class="form-control" style="max-width:320px;">
-                        <option value="">Main Branch (default)</option>
-                        <?php foreach ($owner_branches as $ob): ?>
-                            <option value="<?php echo $ob['id']; ?>" <?php echo ($settings['owner_branch_id'] ?? '') == $ob['id'] ? 'selected' : ''; ?>><?php echo sanitize($ob['name']); ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                    <small class="text-muted d-block mt-1">When the owner (superadmin) opens the POS, bills are created for this branch. Other roles always bill for their own branch. Oversight pages (dashboard, reports) still show all branches.</small>
+            <?php elseif ($active_tab === 'shop'): ?>
+                <div class="form-group">
+                    <label class="form-label">Shop Name <span class="req">*</span></label>
+                    <input type="text" name="shop_name" class="form-control" value="<?php echo sanitize($shop['name'] ?? ''); ?>" required>
+                    <p class="form-hint">Printed on every bill and receipt.</p>
+                </div>
+                <div class="form-group mt-3">
+                    <label class="form-label">Shop Address</label>
+                    <textarea name="shop_address" class="form-control" rows="2"><?php echo sanitize($shop['address'] ?? ''); ?></textarea>
+                </div>
+                <div class="form-row mt-3">
+                    <div class="form-group">
+                        <label class="form-label">Phone</label>
+                        <input type="text" name="shop_phone" class="form-control" value="<?php echo sanitize($shop['phone'] ?? ''); ?>">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Manager / Owner Name</label>
+                        <input type="text" name="shop_manager" class="form-control" value="<?php echo sanitize($shop['manager_name'] ?? ''); ?>">
+                    </div>
                 </div>
 
             <?php elseif ($active_tab === 'invoice'): ?>

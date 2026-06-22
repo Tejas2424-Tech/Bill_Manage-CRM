@@ -55,12 +55,6 @@ $top_stmt = $pdo->prepare("SELECT p.name, SUM(bi.quantity) as total_sold FROM bi
 if ($b_filter_active) $top_stmt->execute([$b_filter_param]); else $top_stmt->execute();
 $top_products = $top_stmt->fetchAll();
 
-$branch_performance = [];
-if (isAdmin()) {
-    $stmt = $pdo->query("SELECT b.name, COALESCE(SUM(bi.total_amount),0) as today_sales FROM branches b LEFT JOIN bills bi ON b.id = bi.branch_id AND DATE(bi.created_at) = CURDATE() AND bi.status != 'cancelled' GROUP BY b.id");
-    $branch_performance = $stmt->fetchAll();
-}
-
 $monthly_gross    = $pdo->query("SELECT SUM((bi.selling_price - p.purchase_price) * bi.quantity) as profit FROM bill_items bi JOIN bills b ON bi.bill_id = b.id JOIN products p ON bi.product_id = p.id WHERE MONTH(b.created_at) = MONTH(CURDATE()) AND YEAR(b.created_at) = YEAR(CURDATE()) AND b.status != 'cancelled' $branch_filter_b")->fetch()['profit'] ?? 0;
 $monthly_expenses = $pdo->query("SELECT SUM(amount) as total FROM expenses WHERE MONTH(expense_date) = MONTH(CURDATE()) AND YEAR(expense_date) = YEAR(CURDATE()) $branch_filter")->fetch()['total'] ?? 0;
 $monthly_net      = $monthly_gross - $monthly_expenses;
@@ -105,19 +99,6 @@ include_once __DIR__ . '/../../includes/header.php';
         <div class="sub">Welcome back, <?php echo sanitize($user['name'] ?? 'User'); ?> — <?php echo date('l, d F Y'); ?></div>
     </div>
     <div class="page-header-actions">
-        <?php if (isAdmin()): ?>
-            <?php $branches = $pdo->query("SELECT id, name FROM branches WHERE status='active' ORDER BY name ASC")->fetchAll(); ?>
-            <form method="GET">
-                <select name="branch_id" class="form-control" style="width:180px;" onchange="this.form.submit()">
-                    <option value="0" <?php echo $selected_branch_filter == 0 ? 'selected' : ''; ?>>All Branches</option>
-                    <?php foreach ($branches as $b): ?>
-                        <option value="<?php echo $b['id']; ?>" <?php echo $selected_branch_filter == $b['id'] ? 'selected' : ''; ?>>
-                            <?php echo sanitize($b['name']); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </form>
-        <?php endif; ?>
         <a href="<?php echo BASE_URL; ?>/modules/billing/create.php" class="btn btn-primary">
             <i class="fas fa-plus"></i> New Bill
         </a>
@@ -129,7 +110,7 @@ include_once __DIR__ . '/../../includes/header.php';
 <div class="grid-4" style="margin-bottom:20px;">
     <?php
     $icon_styles = [
-        'orange' => 'background:#FFF7ED;color:var(--primary)',
+        'orange' => 'background:#FFF7ED;color:#F97316',
         'green'  => 'background:var(--success-light);color:var(--success)',
         'blue'   => 'background:var(--secondary-light);color:var(--secondary)',
         'purple' => 'background:var(--purple-light);color:var(--purple)',
@@ -398,22 +379,6 @@ include_once __DIR__ . '/../../includes/header.php';
     </div>
 </div>
 
-<!-- Branch Performance (Superadmin) -->
-<?php if (isAdmin() && !empty($branch_performance)): ?>
-<div style="margin-top:20px;">
-    <div style="font-size:14px;font-weight:600;color:var(--on-surface);margin-bottom:12px;">Branch Performance Today</div>
-    <div class="grid-4">
-        <?php foreach ($branch_performance as $bp): ?>
-            <div class="stat-card" style="padding:16px;">
-                <div style="font-size:11px;color:var(--on-surface-subtle);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;"><?php echo sanitize($bp['name']); ?></div>
-                <div style="font-size:18px;font-weight:700;color:var(--on-surface);"><?php echo formatCurrency($bp['today_sales']); ?></div>
-                <div style="font-size:11px;color:var(--on-surface-subtle);margin-top:2px;">Today's sales</div>
-            </div>
-        <?php endforeach; ?>
-    </div>
-</div>
-<?php endif; ?>
-
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
@@ -429,11 +394,11 @@ document.addEventListener('DOMContentLoaded', function() {
             datasets: [{
                 label: 'Daily Sales (₹)',
                 data: <?php echo json_encode($chart_values); ?>,
-                backgroundColor: 'rgba(249,115,22,0.15)',
-                borderColor: '#F97316',
+                backgroundColor: 'rgba(99,102,241,0.15)',
+                borderColor: '#6366F1',
                 borderWidth: 2,
                 borderRadius: 6,
-                hoverBackgroundColor: 'rgba(249,115,22,0.35)',
+                hoverBackgroundColor: 'rgba(99,102,241,0.35)',
             }]
         },
         options: {

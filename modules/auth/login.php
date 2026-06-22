@@ -81,7 +81,7 @@ $msg = $_GET['msg'] ?? '';
             content: '';
             position: absolute;
             inset: 0;
-            background-image: radial-gradient(circle, rgba(249,115,22,0.08) 1px, transparent 1px);
+            background-image: radial-gradient(circle, rgba(99,102,241,0.08) 1px, transparent 1px);
             background-size: 28px 28px;
             pointer-events: none;
         }
@@ -95,7 +95,7 @@ $msg = $_GET['msg'] ?? '';
             width: 360px;
             height: 360px;
             border-radius: 50%;
-            background: radial-gradient(circle, rgba(249,115,22,0.18) 0%, transparent 70%);
+            background: radial-gradient(circle, rgba(99,102,241,0.18) 0%, transparent 70%);
             pointer-events: none;
         }
 
@@ -111,7 +111,7 @@ $msg = $_GET['msg'] ?? '';
         .brand-logo .logo-mark {
             width: 44px;
             height: 44px;
-            background: #F97316;
+            background: #6366F1;
             border-radius: 12px;
             display: flex;
             align-items: center;
@@ -137,7 +137,7 @@ $msg = $_GET['msg'] ?? '';
             letter-spacing: -0.5px;
         }
 
-        .brand-headline span { color: #F97316; }
+        .brand-headline span { color: #6366F1; }
 
         .brand-sub {
             font-size: 15px;
@@ -165,13 +165,13 @@ $msg = $_GET['msg'] ?? '';
             width: 36px;
             height: 36px;
             border-radius: 10px;
-            background: rgba(249,115,22,0.15);
-            border: 1px solid rgba(249,115,22,0.25);
+            background: rgba(99,102,241,0.15);
+            border: 1px solid rgba(99,102,241,0.25);
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 14px;
-            color: #F97316;
+            color: #6366F1;
             flex-shrink: 0;
         }
 
@@ -254,8 +254,8 @@ $msg = $_GET['msg'] ?? '';
         }
 
         .login-input-wrap .form-control:focus {
-            border-color: #F97316;
-            box-shadow: 0 0 0 3px rgba(249,115,22,0.12);
+            border-color: #6366F1;
+            box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
         }
 
         .password-toggle-btn {
@@ -276,7 +276,7 @@ $msg = $_GET['msg'] ?? '';
         .login-submit-btn {
             width: 100%;
             height: 46px;
-            background: #F97316;
+            background: #6366F1;
             color: white;
             border: none;
             border-radius: 10px;
@@ -292,7 +292,7 @@ $msg = $_GET['msg'] ?? '';
             margin-top: 8px;
         }
 
-        .login-submit-btn:hover { background: #EA580C; box-shadow: 0 4px 14px rgba(249,115,22,0.35); transform: translateY(-1px); }
+        .login-submit-btn:hover { background: #4F46E5; box-shadow: 0 4px 14px rgba(99,102,241,0.35); transform: translateY(-1px); }
         .login-submit-btn:active { transform: translateY(0); }
         .login-submit-btn:disabled { opacity: 0.65; pointer-events: none; }
 

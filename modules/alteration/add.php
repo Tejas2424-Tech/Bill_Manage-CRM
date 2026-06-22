@@ -10,7 +10,7 @@ require_once __DIR__ . '/../customers/customer_lib.php';
 requireNotCashier();
 
 $isAdmin   = isAdmin();
-$branch_id = (int)($_SESSION['branch_id'] ?? 0);
+$branch_id = (int)($_SESSION['branch_id'] ?? 0) ?: 1; // single-branch app: fall back to the one shop
 
 $id      = isset($_GET['id']) ? (int)$_GET['id'] : null;
 $is_edit = $id !== null;
@@ -42,15 +42,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $alteration_date = $_POST['alteration_date'] ?: date('Y-m-d');
     $status          = in_array($_POST['status'] ?? '', ['pending','ready','delivered'], true) ? $_POST['status'] : 'pending';
 
-    // Resolve the branch (superadmin posts a branch; others use their own).
-    if ($isAdmin && !$is_edit) {
-        $target_branch = (int)($_POST['branch_id'] ?? 0);
-    } else {
-        $target_branch = $is_edit ? (int)$alt['branch_id'] : $branch_id;
-    }
+    // Single-branch app: alterations belong to the one shop.
+    $target_branch = $is_edit ? (int)$alt['branch_id'] : $branch_id;
 
-    if ($customer_name === '' || $alteration_type === '' || ($isAdmin && !$is_edit && !$target_branch)) {
-        $error = 'Customer Name, Alteration Type' . ($isAdmin && !$is_edit ? ' and Branch' : '') . ' are required.';
+    if ($customer_name === '' || $alteration_type === '') {
+        $error = 'Customer Name and Alteration Type are required.';
     } else {
         // Link to a customer master record when a mobile is supplied (reused helper).
         $customer_id = findOrCreateCustomer($pdo, $target_branch, $customer_name, $mobile, null, (int)$_SESSION['user_id']);
@@ -70,8 +66,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$branches = $isAdmin ? $pdo->query("SELECT id, name FROM branches WHERE status='active' ORDER BY name ASC")->fetchAll() : [];
-
 include_once __DIR__ . '/../../includes/header.php';
 ?>
 
@@ -89,18 +83,6 @@ include_once __DIR__ . '/../../includes/header.php';
 
             <form action="" method="POST" class="mt-4">
                 <input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>">
-
-                <?php if ($isAdmin && !$is_edit): ?>
-                <div class="form-group mb-3">
-                    <label class="form-label">Branch <span class="req">*</span></label>
-                    <select name="branch_id" class="form-control" required>
-                        <option value="">Select Branch</option>
-                        <?php foreach ($branches as $b): ?>
-                            <option value="<?php echo $b['id']; ?>"><?php echo sanitize($b['name']); ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <?php endif; ?>
 
                 <div class="form-row">
                     <div class="form-group">

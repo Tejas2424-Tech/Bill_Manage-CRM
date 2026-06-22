@@ -12,7 +12,6 @@ $pageTitle = 'Add User';
 $breadcrumb = '<a href="' . BASE_URL . '/modules/users/index.php">Users</a><span class="sep"><i class="fas fa-chevron-right"></i></span><span class="current">Add User</span>';
 
 $error = '';
-$branches = $pdo->query("SELECT id, name FROM branches WHERE status='active'")->fetchAll();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
@@ -24,7 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password = $_POST['password'] ?? '';
     $confirm_password = $_POST['confirm_password'] ?? '';
     $role = $_POST['role'] ?? 'staff';
-    $branch_id = $role === 'superadmin' ? null : ($_POST['branch_id'] ?: null);
+    $branch_id = 1; // single-branch app: every user belongs to the one shop
     $status = $_POST['status'] ?? 'active';
 
     // Validation
@@ -36,8 +35,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Password must be at least 6 characters long.';
     } elseif ($password !== $confirm_password) {
         $error = 'Passwords do not match.';
-    } elseif ($role !== 'superadmin' && empty($branch_id)) {
-        $error = 'Please select a branch for non-superadmin users.';
     } else {
         // Check if email exists
         $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ?");
@@ -99,25 +96,14 @@ include_once __DIR__ . '/../../includes/header.php';
                     </div>
                 </div>
 
-                <div class="form-row-3">
+                <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Role <span class="req">*</span></label>
                         <select name="role" id="roleSelect" class="form-control" required>
                             <option value="cashier" <?php echo (isset($_POST['role']) && $_POST['role'] === 'cashier') ? 'selected' : ''; ?>>Cashier</option>
                             <option value="staff" <?php echo (isset($_POST['role']) && $_POST['role'] === 'staff') ? 'selected' : ''; ?>>Staff</option>
-                            <option value="branch_admin" <?php echo (isset($_POST['role']) && $_POST['role'] === 'branch_admin') ? 'selected' : ''; ?>>Branch Admin</option>
+                            <option value="branch_admin" <?php echo (isset($_POST['role']) && $_POST['role'] === 'branch_admin') ? 'selected' : ''; ?>>Manager</option>
                             <option value="superadmin" <?php echo (isset($_POST['role']) && $_POST['role'] === 'superadmin') ? 'selected' : ''; ?>>Super Admin</option>
-                        </select>
-                    </div>
-                    <div class="form-group" id="branchGroup">
-                        <label class="form-label">Branch <span class="req">*</span></label>
-                        <select name="branch_id" class="form-control">
-                            <option value="">Select Branch</option>
-                            <?php foreach ($branches as $b): ?>
-                                <option value="<?php echo $b['id']; ?>" <?php echo (isset($_POST['branch_id']) && $_POST['branch_id'] == $b['id']) ? 'selected' : ''; ?>>
-                                    <?php echo $b['name']; ?>
-                                </option>
-                            <?php endforeach; ?>
                         </select>
                     </div>
                     <div class="form-group">
@@ -139,26 +125,5 @@ include_once __DIR__ . '/../../includes/header.php';
         </div>
     </div>
 </div>
-
-<script>
-    const roleSelect = document.getElementById('roleSelect');
-    const branchGroup = document.getElementById('branchGroup');
-    const branchSelect = branchGroup.querySelector('select');
-
-    function toggleBranchVisibility() {
-        if (roleSelect.value === 'superadmin') {
-            branchGroup.style.opacity = '0.5';
-            branchSelect.disabled = true;
-            branchSelect.required = false;
-        } else {
-            branchGroup.style.opacity = '1';
-            branchSelect.disabled = false;
-            branchSelect.required = true;
-        }
-    }
-
-    roleSelect.addEventListener('change', toggleBranchVisibility);
-    toggleBranchVisibility();
-</script>
 
 <?php include_once __DIR__ . '/../../includes/footer.php'; ?>

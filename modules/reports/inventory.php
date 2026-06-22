@@ -85,18 +85,6 @@ include_once __DIR__ . '/../../includes/header.php';
     </div>
 </div>
 
-<?php if ($isAdmin): ?>
-    <div class="table-toolbar mb-4">
-        <form action="" method="GET" class="d-flex gap-2">
-            <select name="branch_id" class="form-control" style="max-width: 200px;" onchange="this.form.submit()">
-                <option value="all">All Branches</option>
-                <?php foreach ($pdo->query("SELECT id, name FROM branches WHERE status='active'")->fetchAll() as $b): ?>
-                    <option value="<?php echo $b['id']; ?>" <?php echo $selected_branch == $b['id'] ? 'selected' : ''; ?>><?php echo $b['name']; ?></option>
-                <?php endforeach; ?>
-            </select>
-        </form>
-    </div>
-<?php endif; ?>
 
 <div class="stat-grid mb-4">
     <div class="stat-card blue">

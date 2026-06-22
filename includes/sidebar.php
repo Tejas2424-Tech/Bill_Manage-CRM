@@ -157,25 +157,6 @@ $unread_notifs = getUnreadNotificationCount();
     </a>
     <?php endif; ?>
 
-    <!-- Multi-Branch (Superadmin only) -->
-    <?php if (isAdmin()): ?>
-    <div class="nav-section">Multi-Branch</div>
-
-    <a href="<?php echo BASE_URL; ?>/modules/branches/index.php"
-       class="nav-item <?php echo (strpos($current_uri, '/branches/') !== false && strpos($current_uri, '/transfer') === false) ? 'active' : ''; ?>"
-       data-tooltip="Branches">
-        <i class="fas fa-store"></i>
-        <span class="nav-label">Branches</span>
-    </a>
-
-    <a href="<?php echo BASE_URL; ?>/modules/branches/transfer.php"
-       class="nav-item <?php echo strpos($current_uri, '/branches/transfer') !== false ? 'active' : ''; ?>"
-       data-tooltip="Stock Transfer">
-        <i class="fas fa-arrows-rotate"></i>
-        <span class="nav-label">Stock Transfer</span>
-    </a>
-    <?php endif; ?>
-
     <!-- System -->
     <div class="nav-section">System</div>
 

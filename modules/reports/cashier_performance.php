@@ -74,7 +74,6 @@ $stmt = $pdo->prepare("SELECT DATE(b.created_at) as sale_date, SUM(b.total_amoun
 $stmt->execute($trend_params);
 $trend_data = $stmt->fetchAll();
 
-$branches = $isAdmin ? $pdo->query("SELECT id, name FROM branches ORDER BY name ASC")->fetchAll() : [];
 
 include_once __DIR__ . '/../../includes/header.php';
 ?>
@@ -102,14 +101,6 @@ include_once __DIR__ . '/../../includes/header.php';
             <input type="date" name="date_from" class="form-control" value="<?php echo $date_from; ?>" style="width:150px;">
             <input type="date" name="date_to"   class="form-control" value="<?php echo $date_to;   ?>" style="width:150px;">
             <input type="hidden" name="range" value="custom">
-        <?php endif; ?>
-        <?php if ($isAdmin): ?>
-            <select name="branch_id" class="form-control" style="width:160px;">
-                <option value="0">All Branches</option>
-                <?php foreach ($branches as $br): ?>
-                    <option value="<?php echo $br['id']; ?>" <?php echo $selected_branch==$br['id'] ? 'selected':''; ?>><?php echo sanitize($br['name']); ?></option>
-                <?php endforeach; ?>
-            </select>
         <?php endif; ?>
         <?php if ($range === 'custom'): ?>
             <button type="submit" class="btn btn-outline"><i class="fas fa-filter"></i> Apply</button>

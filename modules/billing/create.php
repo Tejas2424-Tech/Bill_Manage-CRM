@@ -9,19 +9,12 @@ require_once __DIR__ . '/../customers/customer_lib.php';
 
 requireLogin();
 
-// Branch the user is billing AS. Non-admins use their own branch; the owner
-// (superadmin) operates as the configured/Main branch (see getOperatingBranchId()).
-$branch_id = getOperatingBranchId();
-
-// Resolve the branch name/code for display and bill numbering.
-$branch_meta = null;
-if ($branch_id) {
-    $bmeta = $pdo->prepare("SELECT name, code FROM branches WHERE id = ?");
-    $bmeta->execute([$branch_id]);
-    $branch_meta = $bmeta->fetch();
-}
-$branch_name = $branch_meta['name'] ?? ($_SESSION['branch_name'] ?? '');
-$branch_code = $branch_meta['code'] ?? 'MAIN';
+// Branch context. Non-admins are locked to their own branch; the owner (superadmin)
+// has no fixed branch (branch_id = 0) and bills across ALL branches — the bill's
+// branch is derived from the cart at POST time (one bill = one branch).
+$branch_id   = (int)($_SESSION['branch_id'] ?? 0);          // 0 for superadmin → all branches
+$branch_code = 'MAIN';                                       // resolved after cart (below)
+$branch_name = isAdmin() ? '' : ($_SESSION['branch_name'] ?? ''); // chip only for single-branch users
 
 // 2. Handle POST Request
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -36,7 +29,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect('create.php');
     }
 
-    // $branch_id / $branch_code are already resolved above to the operating branch.
+    // For the owner (no fixed branch), derive the bill's branch from the cart.
+    // Safety: a single bill must belong to exactly one branch — block mixed carts
+    // so stock/inventory_log never get attributed to the wrong branch.
+    if (!$branch_id && isAdmin()) {
+        $ids = array_column($cart, 'id');
+        $ph  = implode(',', array_fill(0, count($ids), '?'));
+        $br  = $pdo->prepare("SELECT DISTINCT branch_id FROM products WHERE id IN ($ph)");
+        $br->execute($ids);
+        $distinct = $br->fetchAll(PDO::FETCH_COLUMN);
+        if (count($distinct) !== 1) {
+            flashMessage('danger', 'All items in one bill must be from the same branch.');
+            redirect('create.php');
+        }
+        $branch_id = (int)$distinct[0];
+    }
+
+    // Resolve the branch code for bill numbering/display (applies to non-admins too).
+    $bstmt = $pdo->prepare("SELECT code FROM branches WHERE id = ?");
+    $bstmt->execute([$branch_id]);
+    $branch_code = $bstmt->fetchColumn() ?: 'MAIN';
 
     $customer_name = sanitize($_POST['customer_name'] ?? 'Walk-in');
     $customer_phone = sanitize($_POST['customer_phone'] ?? '');
@@ -735,6 +747,7 @@ document.addEventListener('click', e => {
 
 let searchTimeout;
 const smartSearch = document.getElementById('smartSearch');
+const posBranchName = <?php echo json_encode($branch_name); ?>;
 
 // On Enter: barcode (all-digit 8+) or text search
 smartSearch.addEventListener('keydown', e => {
@@ -773,8 +786,11 @@ function doSearch(q, addFirst) {
         .then(data => {
             const results = document.getElementById('searchResults');
             if (!data || !data.length) {
-                if (addFirst) showNotice('No product found for "' + q + '"', 'danger');
-                results.style.display = 'none';
+                if (addFirst) { showNotice('No product found for "' + q + '"', 'danger'); results.style.display = 'none'; return; }
+                const scope = posBranchName ? ' in ' + posBranchName : '';
+                results.innerHTML = '<div class="search-item text-muted" style="cursor:default;">'
+                    + 'No products found' + scope + ' for "' + q.replace(/</g, '&lt;') + '"</div>';
+                results.style.display = 'block';
                 return;
             }
             if (addFirst) {

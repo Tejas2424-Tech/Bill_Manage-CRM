@@ -141,18 +141,6 @@ include_once __DIR__ . '/../../includes/header.php';
         <input type="date" name="date_from" class="form-control" value="<?php echo $date_from; ?>" style="max-width: 150px;">
         <input type="date" name="date_to" class="form-control" value="<?php echo $date_to; ?>" style="max-width: 150px;">
         
-        <?php if ($isAdmin): ?>
-            <select name="branch_id" class="form-control" style="max-width: 150px;">
-                <option value="all">All Branches</option>
-                <?php
-                $branches = $pdo->query("SELECT id, name FROM branches WHERE status='active'")->fetchAll();
-                foreach ($branches as $b) {
-                    echo "<option value='{$b['id']}' " . ($selected_branch == $b['id'] ? 'selected' : '') . ">{$b['name']}</option>";
-                }
-                ?>
-            </select>
-        <?php endif; ?>
-        
         <button type="submit" class="btn btn-primary btn-icon"><i class="fas fa-filter"></i></button>
     </form>
 </div>

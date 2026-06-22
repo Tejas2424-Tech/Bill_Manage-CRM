@@ -105,15 +105,6 @@ include_once __DIR__ . '/../../includes/header.php';
             <option value="1" <?php echo $show_all ? 'selected' : ''; ?>>Show All Customers</option>
         </select>
         
-        <?php if ($isAdmin): ?>
-            <select name="branch_id" class="form-control" style="max-width: 180px;" onchange="this.form.submit()">
-                <option value="all">All Branches</option>
-                <?php foreach ($pdo->query("SELECT id, name FROM branches WHERE status='active'")->fetchAll() as $b): ?>
-                    <option value="<?php echo $b['id']; ?>" <?php echo $selected_branch == $b['id'] ? 'selected' : ''; ?>><?php echo $b['name']; ?></option>
-                <?php endforeach; ?>
-            </select>
-        <?php endif; ?>
-
         <div class="d-flex gap-2 ms-auto align-center">
             <span class="fs-12 text-muted">Collection Period:</span>
             <input type="date" name="date_from" class="form-control" value="<?php echo $date_from; ?>" style="max-width: 140px;">

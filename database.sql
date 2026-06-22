@@ -108,8 +108,6 @@ CREATE TABLE products (
 --   CREATE TABLE alterations (id INT AUTO_INCREMENT PRIMARY KEY, branch_id INT NOT NULL, customer_id INT NULL, customer_name VARCHAR(100) NOT NULL, mobile VARCHAR(15) NULL, bill_number VARCHAR(30) NULL, product_name VARCHAR(200) NULL, alteration_type VARCHAR(100) NOT NULL, alteration_charge DECIMAL(10,2) NOT NULL DEFAULT 0, alteration_date DATE NOT NULL, status ENUM('pending','ready','delivered') NOT NULL DEFAULT 'pending', created_by INT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE CASCADE, FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL, FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL) ENGINE=InnoDB;
 -- Migration for existing installs: NO-RETURN print footer (bold, EN + Marathi; editable in Settings > Invoice):
 --   INSERT INTO settings (key_name, value) VALUES ('return_policy_en','NO RETURN • NO EXCHANGE • NO REFUND'), ('return_policy_mr','माल विकला गेला आहे. परतावा, बदल किंवा पैसे परत मिळणार नाहीत.') ON DUPLICATE KEY UPDATE value = value;
--- Migration for existing installs: Owner's operating branch (which branch the superadmin bills as in POS; empty = Main):
---   INSERT INTO settings (key_name, value) VALUES ('owner_branch_id','') ON DUPLICATE KEY UPDATE value = value;
 
 -- 6. Inventory Log Table
 CREATE TABLE inventory_log (
@@ -493,5 +491,4 @@ INSERT INTO settings (key_name, value) VALUES
 ('invoice_footer', 'Thank you for your business!'),
 ('return_policy_en', 'NO RETURN • NO EXCHANGE • NO REFUND'),
 ('return_policy_mr', 'माल विकला गेला आहे. परतावा, बदल किंवा पैसे परत मिळणार नाहीत.'),
-('default_print_format', 'a4'),
-('owner_branch_id', '');
+('default_print_format', 'a4');

@@ -45,15 +45,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $dead_stock_days = (int)($_POST['dead_stock_days'] ?? 90);
     $status = $_POST['status'] ?? 'active';
     
-    // For Superadmins, allow selecting branch
-    if (isAdmin()) {
-        $branch_id = (int)($_POST['branch_id'] ?? 0);
-    } else {
-        $branch_id = (int)$_SESSION['branch_id'];
-    }
+    // Single-branch app: products always belong to the one shop
+    $branch_id = (int)($_SESSION['branch_id'] ?? 1);
 
-    if (empty($name) || $purchase_price <= 0 || $selling_price <= 0 || (isAdmin() && !$branch_id)) {
-        $error = 'Product Name, Purchase Price, Selling Price, and Branch are required.';
+    if (empty($name) || $purchase_price <= 0 || $selling_price <= 0) {
+        $error = 'Product Name, Purchase Price, and Selling Price are required.';
     } else {
         // Handle Image Upload
         $image_name = $product['image'] ?? null;
@@ -98,7 +94,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $categories = $pdo->query("SELECT id, name FROM categories WHERE status=1 ORDER BY name ASC")->fetchAll();
 $brands = $pdo->query("SELECT id, name FROM brands WHERE status=1 ORDER BY name ASC")->fetchAll();
-$branches = isAdmin() ? $pdo->query("SELECT id, name FROM branches WHERE status='active' ORDER BY name ASC")->fetchAll() : [];
 
 include_once __DIR__ . '/../../includes/header.php';
 ?>
@@ -123,22 +118,6 @@ include_once __DIR__ . '/../../includes/header.php';
                 <div class="row">
                     <!-- LEFT COLUMN -->
                     <div class="col-md-6 border-end border-secondary pe-md-4">
-                        <?php if (isAdmin()): ?>
-                            <div class="form-group mb-3">
-                                <label class="form-label">Target Branch <span class="req">*</span></label>
-                                <select name="branch_id" class="form-control" required <?php echo $is_edit ? 'disabled' : ''; ?>>
-                                    <option value="">Select Branch</option>
-                                    <?php foreach ($branches as $b): ?>
-                                        <option value="<?php echo $b['id']; ?>" <?php echo ($product['branch_id'] ?? '') == $b['id'] ? 'selected' : ''; ?>><?php echo $b['name']; ?></option>
-                                    <?php endforeach; ?>
-                                </select>
-                                <?php if ($is_edit): ?>
-                                    <input type="hidden" name="branch_id" value="<?php echo $product['branch_id']; ?>">
-                                    <small class="text-muted italic">Branch cannot be changed after creation.</small>
-                                <?php endif; ?>
-                            </div>
-                        <?php endif; ?>
-
                         <div class="form-group">
                             <label class="form-label">Product Name <span class="req">*</span></label>
                             <input type="text" name="name" id="prodName" class="form-control" value="<?php echo sanitize($product['name'] ?? ''); ?>" required>

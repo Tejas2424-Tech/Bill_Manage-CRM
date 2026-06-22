@@ -113,7 +113,6 @@ $stmt = $pdo->prepare("SELECT il.*, p.name as product_name, p.sku, u.name as use
 $stmt->execute($params);
 $movements = $stmt->fetchAll();
 
-$branches = $isAdmin ? $pdo->query("SELECT id, name FROM branches ORDER BY name ASC")->fetchAll() : [];
 
 $net_change = ($stats['total_in'] ?? 0) - ($stats['total_out'] ?? 0);
 
@@ -158,14 +157,6 @@ include_once __DIR__ . '/../../includes/header.php';
         </select>
         <input type="text" name="product" class="form-control" placeholder="Search productâ€¦"
                value="<?php echo $product_search; ?>" style="width:180px;">
-        <?php if ($isAdmin): ?>
-            <select name="branch_id" class="form-control" style="width:160px;">
-                <option value="0">All Branches</option>
-                <?php foreach ($branches as $br): ?>
-                    <option value="<?php echo $br['id']; ?>" <?php echo $selected_branch==$br['id'] ? 'selected':''; ?>><?php echo sanitize($br['name']); ?></option>
-                <?php endforeach; ?>
-            </select>
-        <?php endif; ?>
         <button type="submit" class="btn btn-outline"><i class="fas fa-filter"></i> Apply</button>
         <a href="stock_movement.php" class="btn btn-ghost">Clear</a>
     </form>
